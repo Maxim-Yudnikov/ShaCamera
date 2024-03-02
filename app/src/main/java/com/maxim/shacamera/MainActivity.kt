@@ -1,8 +1,13 @@
 package com.maxim.shacamera
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.ImageFormat
+import android.graphics.Rect
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
@@ -10,28 +15,62 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.media.ImageReader
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
-import android.util.Size
-import android.util.SparseIntArray
+import android.provider.MediaStore
+import android.util.Log
+import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.databinding.ActivityMainBinding
-import java.util.Collections
+import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private var previewSize: Size? = null
-    private var captureRequestBuilder: CaptureRequest.Builder? = null
 
+    private var backgroundThread: HandlerThread? = null
+    private var handler: Handler? = null
+
+    private val myCameras = mutableListOf<CameraService>()
+    private var cameraManager: CameraManager? = null
+
+    private var cameraId = ""
+
+    private fun startBackgroundThread() {
+        backgroundThread = HandlerThread("camera-background")
+        backgroundThread!!.start()
+        handler = Handler(backgroundThread!!.looper)
+    }
+
+    private fun stopBackgroundThread() {
+        backgroundThread!!.quitSafely()
+        try {
+            backgroundThread!!.join()
+            backgroundThread = null
+            handler = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private var bitmapZoom = 1f
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-            setupCamera(width, height)
+            myCameras[0].open()
+            cameraId = myCameras[0].cameraId
         }
 
         override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
@@ -43,46 +82,161 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-
+            val bitmap = binding.textureView.bitmap!!
+            val width = (binding.textureView.width / bitmapZoom).toInt()
+            val height = (binding.textureView.height / bitmapZoom).toInt()
+            val newBitmap = Bitmap.createBitmap(
+                bitmap,
+                bitmap.width / 2 - width / 2,
+                bitmap.height / 2 - height / 2,
+                width,
+                height
+            )
+            binding.imageView.setImageBitmap(newBitmap)
         }
     }
 
-    private var cameraDevice: CameraDevice? = null
-    private val cameraDeviceStateCallback = object : CameraDevice.StateCallback() {
-        override fun onOpened(camera: CameraDevice) {
-            cameraDevice = camera
-            startPreview()
-            Toast.makeText(applicationContext, "camera connected!", Toast.LENGTH_LONG).show()
-        }
+    private var fingerSpacing = 0f
+    private var zoomLevel = 1f
+    private var maxZoomLevel = 30
+    private var zoom: Rect? = null
 
-        override fun onDisconnected(camera: CameraDevice) {
-            camera.close()
-            cameraDevice = null
-        }
-
-        override fun onError(camera: CameraDevice, error: Int) {
-            camera.close()
-            cameraDevice = null
-        }
-    }
+    private var captureRequestBuilder: CaptureRequest.Builder? = null
+    private var cameraCaptureSession: CameraCaptureSession? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
-    }
-
-    override fun onPause() {
-        cameraDevice?.let {
-            it.close()
-            cameraDevice = null
+        cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        try {
+            myCameras.clear()
+            myCameras.addAll(cameraManager!!.cameraIdList.map {
+                CameraService(it, cameraManager!!)
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
 
-        stopBackgroundThread()
+        binding.photoButton.setOnClickListener {
+            makePhoto()
+        }
 
-        super.onPause()
+        binding.changeCameraButton.setOnClickListener {
+            if (myCameras[0].isOpen()) {
+                myCameras[0].close()
+                if (!myCameras[1].isOpen())
+                    myCameras[1].open()
+                cameraId = myCameras[1].cameraId
+            } else if (myCameras[1].isOpen()) {
+                myCameras[1].close()
+                if (!myCameras[0].isOpen())
+                    myCameras[0].open()
+                cameraId = myCameras[0].cameraId
+            }
+        }
+
+        val listener = object : View.OnTouchListener {
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
+                val rect =
+                    cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+                        ?: return false
+
+                if (event!!.pointerCount == 2) {
+                    val currentFingerSpacing = getFingerSpacing(event)
+                    var delta = 0.8f //Control this value to control the zooming sensibility
+                    if (fingerSpacing != 0f) {
+                        if (currentFingerSpacing > fingerSpacing) {
+                            if ((maxZoomLevel - zoomLevel) <= delta) {
+                                delta = maxZoomLevel - zoomLevel
+                                if ((binding.textureView.width / (bitmapZoom + bitmapZoom / 25)).toInt() != 0)
+                                    bitmapZoom += bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
+                                Log.d("MyLog", "bitmap zoom: $bitmapZoom")
+                            }
+                            zoomLevel += delta
+                        } else if (currentFingerSpacing < fingerSpacing) {
+                            if ((zoomLevel - delta) < 1f) {
+                                delta = zoomLevel - 1f
+                            }
+                            if (bitmapZoom == 1f)
+                                zoomLevel -= delta
+                            else {
+                                bitmapZoom -= bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
+                                if (bitmapZoom < 1f)
+                                    bitmapZoom = 1f
+                                Log.d("MyLog", "bitmap zoom: $bitmapZoom")
+                            }
+                        }
+
+                        val ratio = 1f / zoomLevel
+                        val croppedWidth =
+                            rect.width() - (rect.width().toFloat() * ratio).roundToInt()
+                        val croppedHeight =
+                            rect.height() - (rect.height().toFloat() * ratio).roundToInt()
+                        zoom = Rect(
+                            croppedWidth / 2, croppedHeight / 2,
+                            rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2
+                        )
+                        captureRequestBuilder!!.set(CaptureRequest.SCALER_CROP_REGION, zoom)
+                        val zoomValueText =
+                            if (bitmapZoom == 1f) "${(zoomLevel * 10).roundToInt() / 10f}x" else
+                                "${(zoomLevel * bitmapZoom * 10).roundToInt() / 10}x ($maxZoomLevel*${(bitmapZoom * 10).roundToInt() / 10f})"
+                        binding.zoomValueTextView.text = zoomValueText
+                    }
+                    fingerSpacing = currentFingerSpacing
+                } else {
+                    return true
+                }
+                cameraCaptureSession!!.setRepeatingRequest(
+                    captureRequestBuilder!!.build(),
+                    null,
+                    handler
+                )
+                return true
+            }
+        }
+        binding.textureView.setOnTouchListener(listener)
+    }
+
+    private fun makePhoto() {
+        val bitmap = binding.imageView.drawable.toBitmap()
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+            values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/" + getString(R.string.app_name))
+            values.put(MediaStore.Images.Media.IS_PENDING, true)
+            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            if (uri != null) {
+                val outputStream = contentResolver.openOutputStream(uri)
+                if (outputStream != null) {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    outputStream.close()
+                }
+                values.put(MediaStore.Images.Media.IS_PENDING, false)
+                contentResolver.update(uri, values, null, null)
+                Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            val imageFileFolder = File(Environment.getExternalStorageDirectory().toString() + '/' + getString(R.string.app_name))
+            if (!imageFileFolder.exists()) {
+                imageFileFolder.mkdir()
+            }
+            val imageName = "${System.currentTimeMillis()}.jpg"
+            val imageFile = File(imageFileFolder, imageName)
+            val outputStream = FileOutputStream(imageFile)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+            outputStream.close()
+            values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
+            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -90,162 +244,126 @@ class MainActivity : AppCompatActivity() {
 
         startBackgroundThread()
 
-        if (binding.textureView.isAvailable) {
-            setupCamera(binding.textureView.width, binding.textureView.height)
-            connectCamera()
-        } else {
+        if (!binding.textureView.isAvailable)
             binding.textureView.surfaceTextureListener = textureListener
+        else {
+            myCameras[0].open()
+            cameraId = myCameras[0].cameraId
+        }
+
+        val permissionList = mutableListOf<String>()
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionList.add(Manifest.permission.CAMERA)
+        }
+        if (ContextCompat.checkSelfPermission(
+                applicationContext,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        if (permissionList.isNotEmpty()) {
+            requestPermissions(
+                permissionList.toTypedArray(), 1
+            )
         }
     }
 
-
-    private var cameraId = ""
-    private fun setupCamera(width: Int, height: Int) {
-        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            for (id in cameraManager.cameraIdList) {
-                val cameraCharacteristics = cameraManager.getCameraCharacteristics(id)
-                if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT) {
-                    continue
-                }
-                val map =
-                    cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                val deviceOrientation = windowManager.defaultDisplay.orientation
-                val totalRotation =
-                    sensorToDeviceOrientation(cameraCharacteristics, deviceOrientation)
-                val swapRotation = totalRotation == 90 || totalRotation == 270
-                var rotatedWidth = width
-                var rotatedHeight = height
-                if (swapRotation) {
-                    rotatedWidth = height
-                    rotatedHeight = width
-                }
-                previewSize = chooseOptimalSize(
-                    map!!.getOutputSizes(SurfaceTexture::class.java),
-                    rotatedWidth,
-                    rotatedHeight
-                )
-                cameraId = id
-                return
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private fun getFingerSpacing(event: MotionEvent): Float {
+        val x = event.getX(0) - event.getX(1)
+        val y = event.getY(0) - event.getY(1)
+        return sqrt((x * x + y * y).toDouble()).toFloat()
     }
 
-    private fun connectCamera() {
-        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                cameraManager.openCamera(cameraId, cameraDeviceStateCallback, handler)
-            } else {
-                if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-                    Toast.makeText(this, "App required access to camera", Toast.LENGTH_LONG).show()
-                }
-                requestPermissions(
-                    arrayOf(Manifest.permission.CAMERA),
-                    REQUEST_CAMERA_PERMISSION_RESULT
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    override fun onPause() {
+        super.onPause()
+        stopBackgroundThread()
+        myCameras[0].close()
+        myCameras[1].close()
     }
 
-    private fun startPreview() {
-        val surfaceTexture = binding.textureView.surfaceTexture
-        surfaceTexture!!.setDefaultBufferSize(previewSize!!.width, previewSize!!.height)
-        val previewSurface = Surface(surfaceTexture)
-        try {
-            captureRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            captureRequestBuilder!!.addTarget(previewSurface)
-            cameraDevice!!.createCaptureSession(listOf(previewSurface), object : CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    try {
-                        session.setRepeatingRequest(captureRequestBuilder!!.build(), null, handler)
-                    } catch (e: CameraAccessException) {
-                        e.printStackTrace()
-                    }
-                }
-
-                override fun onConfigureFailed(session: CameraCaptureSession) {
-                    Toast.makeText(applicationContext, "Unable to setup camera preview", Toast.LENGTH_LONG).show()
-                }
-            }, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+    inner class CameraService(
+        val cameraId: String,
+        private val cameraManager: CameraManager
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CAMERA_PERMISSION_RESULT) {
-            if (grantResults.first() == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "App won't work without permission", Toast.LENGTH_LONG).show()
+        private var cameraDevice: CameraDevice? = null
+        private var imageReader: ImageReader? = null
+        private val cameraCallback = object : CameraDevice.StateCallback() {
+            override fun onOpened(camera: CameraDevice) {
+                cameraDevice = camera
+                createCameraPreviewSession()
+            }
+
+            override fun onDisconnected(camera: CameraDevice) {
+                cameraDevice!!.close()
+                cameraDevice = null
+            }
+
+            override fun onError(camera: CameraDevice, error: Int) {
+                Log.d("MyLog", "error: $error, cameraId: ${camera.id}")
             }
         }
-    }
+        private val onImageAvailableListener = ImageReader.OnImageAvailableListener { reader ->
+            handler!!.post(ImageServer(reader.acquireLatestImage(), file))
+        }
+        private val file = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+            "test1.jpg"
+        )
 
-    private fun chooseOptimalSize(choices: Array<Size>, width: Int, height: Int): Size {
-        val bigEnough = mutableListOf<Size>()
-        for (size in choices) {
-            if (size.height == size.width * height / width &&
-                size.width >= width && size.height >= height
-            ) {
-                bigEnough.add(size)
+        @SuppressLint("MissingPermission")
+        fun open() {
+            try {
+                cameraManager.openCamera(cameraId, cameraCallback, handler)
+            } catch (e: CameraAccessException) {
+                e.printStackTrace()
             }
         }
-        return if (bigEnough.isNotEmpty()) {
-            return Collections.min(bigEnough, CompareSizeByArea())
-        } else {
-            choices[0]
+
+        fun close() {
+            cameraDevice?.let {
+                it.close()
+                cameraDevice = null
+            }
         }
-    }
 
-    private var backgroundHandlerThread: HandlerThread? = null
-    private var handler: Handler? = null
+        fun isOpen() = cameraDevice != null
 
-    private fun startBackgroundThread() {
-        backgroundHandlerThread = HandlerThread("camera2")
-        backgroundHandlerThread!!.start()
-        handler = Handler(backgroundHandlerThread!!.looper)
-    }
+        private fun createCameraPreviewSession() {
+            imageReader = ImageReader.newInstance(binding.textureView.width, binding.textureView.height, ImageFormat.JPEG, 10)
+            imageReader!!.setOnImageAvailableListener(onImageAvailableListener, null)
 
-    private fun stopBackgroundThread() {
-        backgroundHandlerThread!!.quitSafely()
-        try {
-            backgroundHandlerThread!!.join()
-            backgroundHandlerThread = null
-            handler = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
+            val texture = binding.textureView.surfaceTexture
+            val surface = Surface(texture)
 
-    private fun sensorToDeviceOrientation(
-        cameraCharacteristics: CameraCharacteristics,
-        deviceOrientation: Int
-    ): Int {
-        val sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
-        val currentDeviceOrientation = ORIENTATIONS.get(deviceOrientation)
-        return (sensorOrientation!! + currentDeviceOrientation + 360) % 360
-    }
+            try {
+                captureRequestBuilder =
+                    cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                captureRequestBuilder!!.addTarget(surface)
+                cameraDevice!!.createCaptureSession(
+                    listOf(surface, imageReader!!.surface),
+                    object : CameraCaptureSession.StateCallback() {
+                        override fun onConfigured(session: CameraCaptureSession) {
+                            cameraCaptureSession = session
+                            try {
+                                cameraCaptureSession!!.setRepeatingRequest(
+                                    captureRequestBuilder!!.build(),
+                                    null,
+                                    handler
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
 
-    companion object {
-        private const val REQUEST_CAMERA_PERMISSION_RESULT = 0
-        private val ORIENTATIONS = SparseIntArray().apply {
-            append(Surface.ROTATION_0, 0)
-            append(Surface.ROTATION_90, 90)
-            append(Surface.ROTATION_180, 180)
-            append(Surface.ROTATION_270, 270)
+                        override fun onConfigureFailed(session: CameraCaptureSession) = Unit
+                    },
+                    null
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
