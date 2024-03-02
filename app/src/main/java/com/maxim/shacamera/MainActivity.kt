@@ -1,9 +1,9 @@
 package com.maxim.shacamera
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.Rect
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraAccessException
@@ -47,9 +47,13 @@ class MainActivity : AppCompatActivity() {
     private var videoFolder: File? = null
     private var videoFileName = ""
 
+    private var bitmapZoom = 1f
+
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
             setupCamera(width, height)
+            setupCamera(binding.textureView.width, binding.textureView.height)
+            connectCamera()
         }
 
         override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
@@ -61,7 +65,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-
+            val bitmap = binding.textureView.bitmap!!
+            val width = (binding.textureView.width / bitmapZoom).toInt()
+            val height = (binding.textureView.height / bitmapZoom).toInt()
+            val newBitmap = Bitmap.createBitmap(
+                bitmap,
+                bitmap.width / 2 - width / 2,
+                bitmap.height / 2 - height / 2,
+                width,
+                height
+            )
+            binding.imageView.setImageBitmap(newBitmap)
         }
     }
 
@@ -86,7 +100,7 @@ class MainActivity : AppCompatActivity() {
 
     private var fingerSpacing = 0f
     private var zoomLevel = 1f
-    private var maxZoomLevel = 100f
+    private var maxZoomLevel = 30
     private var zoom: Rect? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,18 +130,28 @@ class MainActivity : AppCompatActivity() {
 
                 if (event!!.pointerCount == 2) {
                     val currentFingerSpacing = getFingerSpacing(event)
-                    var delta = 0.35f //Control this value to control the zooming sensibility
+                    var delta = 0.8f //Control this value to control the zooming sensibility
                     if (fingerSpacing != 0f) {
                         if (currentFingerSpacing > fingerSpacing) {
                             if ((maxZoomLevel - zoomLevel) <= delta) {
                                 delta = maxZoomLevel - zoomLevel
+                                if ((binding.textureView.width / (bitmapZoom + bitmapZoom / 25)).toInt() != 0)
+                                    bitmapZoom += bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
+                                Log.d("MyLog", "bitmap zoom: $bitmapZoom")
                             }
                             zoomLevel += delta
                         } else if (currentFingerSpacing < fingerSpacing) {
                             if ((zoomLevel - delta) < 1f) {
                                 delta = zoomLevel - 1f
                             }
-                            zoomLevel -= delta
+                            if (bitmapZoom == 1f)
+                                zoomLevel -= delta
+                            else {
+                                bitmapZoom -= bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
+                                if (bitmapZoom < 1f)
+                                    bitmapZoom = 1f
+                                Log.d("MyLog", "bitmap zoom: $bitmapZoom")
+                            }
                         }
 
                         val ratio = 1f / zoomLevel
@@ -139,16 +163,22 @@ class MainActivity : AppCompatActivity() {
                             croppedWidth / 2, croppedHeight / 2,
                             rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2
                         )
-                        Log.d("MyLog", "w: ${zoom!!.width()}, h: ${zoom!!.height()}")
+                        //Log.d("MyLog", "w: ${zoom!!.width()}, h: ${zoom!!.height()}")
                         captureRequestBuilder!!.set(CaptureRequest.SCALER_CROP_REGION, zoom)
-                        val zoomValueText = "${(zoomLevel * 10).roundToInt() / 10f}x"
+                        val zoomValueText =
+                            if (bitmapZoom == 1f) "${(zoomLevel * 10).roundToInt() / 10f}x" else
+                                "${(zoomLevel * bitmapZoom * 10).roundToInt() / 10}x ($maxZoomLevel*${(bitmapZoom * 10).roundToInt() / 10f})"
                         binding.zoomValueTextView.text = zoomValueText
                     }
                     fingerSpacing = currentFingerSpacing
                 } else {
                     return true
                 }
-                cameraCaptureSession!!.setRepeatingRequest(captureRequestBuilder!!.build(), null, handler)
+                cameraCaptureSession!!.setRepeatingRequest(
+                    captureRequestBuilder!!.build(),
+                    null,
+                    handler
+                )
                 return true
             }
         }
@@ -236,6 +266,7 @@ class MainActivity : AppCompatActivity() {
             e.printStackTrace()
         }
     }
+
     //todo
     private var cameraCaptureSession: CameraCaptureSession? = null
     private fun startPreview() {
