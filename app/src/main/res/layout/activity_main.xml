@@ -5,17 +5,16 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <androidx.camera.view.PreviewView
-        android:id="@+id/previewView"
+    <TextureView
+        android:id="@+id/textureView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_centerInParent="true" />
+        android:layout_height="match_parent" />
 
     <ImageButton
         android:id="@+id/actionButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
-        android:layout_alignBottom="@id/previewView"
+        android:layout_alignBottom="@id/textureView"
         android:layout_centerInParent="true"
         android:layout_marginBottom="30dp" />
 
