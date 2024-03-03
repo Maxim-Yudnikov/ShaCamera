@@ -5,9 +5,11 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.os.Build
 import android.os.Handler
 import android.view.Surface
 import android.view.TextureView
+import androidx.annotation.RequiresApi
 import kotlin.reflect.KMutableProperty
 
 interface CameraService {
@@ -58,6 +60,7 @@ interface CameraService {
 
         override fun isOpen() = cameraDevice != null
 
+        @RequiresApi(Build.VERSION_CODES.S)
         override fun createCameraPreviewSession(
             textureView: TextureView,
             handler: Handler,

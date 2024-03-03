@@ -3,10 +3,8 @@ package com.maxim.shacamera.camera.presentation
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Rect
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
@@ -21,14 +19,13 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera {
     override val viewModelClass = CameraViewModel::class.java
@@ -42,7 +39,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     private var cameraId = ""
 
     private var cameraManager: CameraManager? = null
-    private var bitmapZoom = 1f
 
     var captureRequestBuilder: CaptureRequest.Builder? = null
     var cameraCaptureSession: CameraCaptureSession? = null
@@ -54,8 +50,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
             val bitmap = binding.textureView.bitmap!!
-            val width = (binding.textureView.width / bitmapZoom).toInt()
-            val height = (binding.textureView.height / bitmapZoom).toInt()
+            val width = (binding.textureView.width / viewModel.bitmapZoom()).toInt()
+            val height = (binding.textureView.height / viewModel.bitmapZoom()).toInt()
             val newBitmap = Bitmap.createBitmap(
                 bitmap,
                 bitmap.width / 2 - width / 2,
@@ -72,86 +68,31 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture) = false
     }
 
-    //todo in viewModel
-    private fun getFingerSpacing(event: MotionEvent): Float {
-        val x = event.getX(0) - event.getX(1)
-        val y = event.getY(0) - event.getY(1)
-        return sqrt((x * x + y * y).toDouble()).toFloat()
-    }
 
     private val zoomListener = object : View.OnTouchListener {
-        private var fingerSpacing = 0f
-        private var zoomLevel = 1f
-        private var maxZoomLevel = 30
-        private var zoom: Rect? = null
 
+        @RequiresApi(Build.VERSION_CODES.S)
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-            val cameraManager =
-                requireContext().getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
-            val rect =
-                cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
-                    ?: return false
-
-            if (event!!.pointerCount == 2) {
-                val currentFingerSpacing = getFingerSpacing(event)
-                var delta = 0.8f //Control this value to control the zooming sensibility
-                if (fingerSpacing != 0f) {
-                    if (currentFingerSpacing > fingerSpacing) {
-                        if ((maxZoomLevel - zoomLevel) <= delta) {
-                            delta = maxZoomLevel - zoomLevel
-                            if ((binding.textureView.width / (bitmapZoom + bitmapZoom / 25)).toInt() != 0)
-                                bitmapZoom += bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
-                        }
-                        zoomLevel += delta
-                    } else if (currentFingerSpacing < fingerSpacing) {
-                        if ((zoomLevel - delta) < 1f) {
-                            delta = zoomLevel - 1f
-                        }
-                        if (bitmapZoom == 1f)
-                            zoomLevel -= delta
-                        else {
-                            bitmapZoom -= bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
-                            if (bitmapZoom < 1f)
-                                bitmapZoom = 1f
-                        }
-                    }
-
-                    val ratio = 1f / zoomLevel
-                    val croppedWidth =
-                        rect.width() - (rect.width().toFloat() * ratio).roundToInt()
-                    val croppedHeight =
-                        rect.height() - (rect.height().toFloat() * ratio).roundToInt()
-                    zoom = Rect(
-                        croppedWidth / 2, croppedHeight / 2,
-                        rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2
-                    )
-                    captureRequestBuilder!!.set(CaptureRequest.SCALER_CROP_REGION, zoom)
-                    val zoomValueText =
-                        if (bitmapZoom == 1f) "${(zoomLevel * 10).roundToInt() / 10f}x" else
-                            "${(zoomLevel * bitmapZoom).roundToInt()}x ($maxZoomLevel*${(bitmapZoom * 10).roundToInt() / 10f})"
-                    binding.zoomValueTextView.text = zoomValueText
-                }
-                fingerSpacing = currentFingerSpacing
-            } else {
-                return true
-            }
-            cameraCaptureSession!!.setRepeatingRequest(
-                captureRequestBuilder!!.build(),
-                null,
-                handler
+            return viewModel.handleZoom(
+                cameraManager!!.getCameraCharacteristics(cameraId),
+                event!!,
+                listOf(binding.textureView.width, binding.textureView.height).min(),
+                binding.zoomValueTextView,
+                captureRequestBuilder!!,
+                cameraCaptureSession!!,
+                handler!!
             )
-            return true
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         cameraManager = requireActivity().getSystemService(Context.CAMERA_SERVICE) as CameraManager
         myCameras.clear()
-        myCameras.addAll(cameraManager!!.cameraIdList.map {
-            CameraService.Base(it, cameraManager!!, this)
+        myCameras.addAll(cameraManager!!.cameraIdList.map { id ->
+            CameraService.Base(id, cameraManager!!, this)
         })
 
         binding.photoButton.setOnClickListener {
