@@ -1,27 +1,14 @@
 package com.maxim.shacamera.camera.presentation
 
 import android.annotation.SuppressLint
-import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CaptureRequest
-import android.os.Build
 import android.os.Handler
-import android.view.Surface
-import android.view.TextureView
-import androidx.annotation.RequiresApi
-import kotlin.reflect.KMutableProperty
 
 interface CameraService {
     fun openCamera(handler: Handler)
     fun closeCamera()
     fun isOpen(): Boolean
-    fun createCameraPreviewSession(
-        textureView: TextureView,
-        handler: Handler,
-        captureRequestBuilder: KMutableProperty<CaptureRequest.Builder?>,
-        cameraCaptureSession: KMutableProperty<CameraCaptureSession?>
-    )
 
     //todo
     fun cameraId(): String
@@ -35,7 +22,7 @@ interface CameraService {
         private val cameraCallback = object : CameraDevice.StateCallback() {
             override fun onOpened(camera: CameraDevice) {
                 cameraDevice = camera
-                manageCamera.createCameraPreviewSession()
+                manageCamera.createCameraPreviewSession(cameraDevice!!)
             }
 
             override fun onDisconnected(camera: CameraDevice) {
@@ -59,44 +46,6 @@ interface CameraService {
         }
 
         override fun isOpen() = cameraDevice != null
-
-        @RequiresApi(Build.VERSION_CODES.S)
-        override fun createCameraPreviewSession(
-            textureView: TextureView,
-            handler: Handler,
-            captureRequestBuilder: KMutableProperty<CaptureRequest.Builder?>,
-            cameraCaptureSession: KMutableProperty<CameraCaptureSession?>
-        ) {
-            val texture = textureView.surfaceTexture
-            val surface = Surface(texture)
-
-            try {
-                captureRequestBuilder.setter.call(cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW))
-                captureRequestBuilder.getter.call()!!.addTarget(surface)
-                cameraDevice!!.createCaptureSession(
-                    listOf(surface),
-                    object : CameraCaptureSession.StateCallback() {
-                        override fun onConfigured(session: CameraCaptureSession) {
-                            cameraCaptureSession.setter.call(session)
-                            try {
-                                session.setRepeatingRequest(
-                                    captureRequestBuilder.getter.call()!!.build(),
-                                    null,
-                                    handler
-                                )
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-
-                        override fun onConfigureFailed(session: CameraCaptureSession) = Unit
-                    },
-                    null
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
 
         override fun cameraId() = cameraId
     }

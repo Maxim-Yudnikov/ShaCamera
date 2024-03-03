@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
@@ -15,6 +16,7 @@ import android.os.HandlerThread
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
@@ -195,15 +197,32 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
     }
 
-    override fun createCameraPreviewSession() {
-        if (myCameras[0].isOpen())
-            myCameras[0].createCameraPreviewSession(
-                binding.textureView, handler!!, ::captureRequestBuilder, ::cameraCaptureSession
-            )
-        else if (myCameras[1].isOpen())
-            myCameras[1].createCameraPreviewSession(
-                binding.textureView, handler!!, ::captureRequestBuilder, ::cameraCaptureSession
-            )
+    override fun createCameraPreviewSession(cameraDevice: CameraDevice) {
+        val texture = binding.textureView.surfaceTexture
+        val surface = Surface(texture)
+
+        captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        captureRequestBuilder!!.addTarget(surface)
+        cameraDevice.createCaptureSession(
+            listOf(surface),
+            object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    cameraCaptureSession = session
+                    try {
+                        session.setRepeatingRequest(
+                            captureRequestBuilder!!.build(),
+                            null,
+                            handler
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                override fun onConfigureFailed(session: CameraCaptureSession) = Unit
+            },
+            null
+        )
     }
 }
 
@@ -213,5 +232,5 @@ interface ManageCamera {
     fun makePhoto()
     fun startBackgroundThread()
     fun stopBackgroundThread()
-    fun createCameraPreviewSession()
+    fun createCameraPreviewSession(cameraDevice: CameraDevice)
 }
