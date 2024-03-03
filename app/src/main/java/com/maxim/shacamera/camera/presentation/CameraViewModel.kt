@@ -56,4 +56,9 @@ class CameraViewModel(
     fun openCamera(manageCamera: ManageCamera) {
         manageCamera.openCamera(0)
     }
+
+    fun restart(manageCamera: ManageCamera) {
+        manageCamera.closeCamera(0)
+        manageCamera.openCamera(0)
+    }
 }

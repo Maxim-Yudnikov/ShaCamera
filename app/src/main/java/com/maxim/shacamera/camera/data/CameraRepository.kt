@@ -27,7 +27,7 @@ interface CameraRepository {
     class Base : CameraRepository {
         private var fingerSpacing = 0f
         private var zoomLevel = 1f
-        private var maxZoomLevel = 30
+        private var maxZoomLevel = 50
         private var zoom: Rect? = null
         private var bitmapZoom = 1f
 
