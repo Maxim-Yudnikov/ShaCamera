@@ -23,13 +23,16 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
 import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
@@ -160,7 +163,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 }
                 values.put(MediaStore.Images.Media.IS_PENDING, false)
                 contentResolver.update(uri, values, null, null)
-                Toast.makeText(requireContext(), "Saved", Toast.LENGTH_LONG).show()
+                GlobalScope.launch(Dispatchers.Main) {
+                    binding.flash.visibility = View.VISIBLE
+                    delay(100)
+                    binding.flash.visibility = View.GONE
+                }
             }
         } else {
             val imageFileFolder = File(
@@ -178,7 +185,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             outputStream.close()
             values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            Toast.makeText(requireContext(), "Saved", Toast.LENGTH_LONG).show()
+            GlobalScope.launch(Dispatchers.Main) {
+                binding.flash.visibility = View.VISIBLE
+                delay(100)
+                binding.flash.visibility = View.GONE
+            }
         }
     }
 
