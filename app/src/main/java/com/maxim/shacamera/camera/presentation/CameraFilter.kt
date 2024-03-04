@@ -1,4 +1,4 @@
-package com.maxim.shacamera.camera.filters
+package com.maxim.shacamera.camera.presentation
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -39,7 +39,7 @@ interface CameraFilter {
     object Dlss: CameraFilter {
         override fun show(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
-                (420 / bitmapZoom).toInt(),
+                (bitmap.width / 2.5f).toInt(),
                 (40 / bitmapZoom).toInt()
             )
             val filterBitmap =

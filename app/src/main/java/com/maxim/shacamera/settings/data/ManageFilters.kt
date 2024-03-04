@@ -1,6 +1,6 @@
 package com.maxim.shacamera.settings.data
 
-import com.maxim.shacamera.camera.filters.CameraFilter
+import com.maxim.shacamera.camera.presentation.CameraFilter
 import com.maxim.shacamera.core.data.SimpleStorage
 
 interface ManageFilters {
