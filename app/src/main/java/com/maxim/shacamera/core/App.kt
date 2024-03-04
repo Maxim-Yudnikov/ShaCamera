@@ -16,8 +16,8 @@ class App : Application(), ProvideViewModel {
         val core = Core.Base(this)
         factory = ViewModelFactory.Empty
         val dependencyContainer = DependencyContainer.Base(core, object : ClearViewModel {
-            override fun clearViewModel(clasz: Class<out ViewModel>) {
-                factory.clearViewModel(clasz)
+            override fun clear(clasz: Class<out ViewModel>) {
+                factory.clear(clasz)
             }
         })
         factory = ViewModelFactory.Base(ProvideViewModel.Base(dependencyContainer))

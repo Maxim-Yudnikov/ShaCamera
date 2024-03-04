@@ -8,10 +8,30 @@ import android.view.MotionEvent
 import android.widget.TextView
 import androidx.lifecycle.ViewModel
 import com.maxim.shacamera.camera.data.CameraRepository
+import com.maxim.shacamera.core.presentation.Navigation
+import com.maxim.shacamera.core.presentation.Reload
+import com.maxim.shacamera.settings.data.RatioManager
+import com.maxim.shacamera.settings.presentation.SettingsScreen
 
 class CameraViewModel(
-    private val repository: CameraRepository
-) : ViewModel() {
+    private val repository: CameraRepository,
+    private val ratioManager: RatioManager,
+    private val navigation: Navigation.Update
+) : ViewModel(), Reload {
+    private var manageCamera: ManageCamera? = null
+
+    fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
+        if (isFirstRun) {
+            ratioManager.setCallback(this)
+            this.manageCamera = manageCamera
+        }
+    }
+
+    fun screenSizeMode() = ratioManager.currentSizeMode()
+
+    fun settings() {
+        navigation.update(SettingsScreen)
+    }
 
     fun bitmapZoom() = repository.bitmapZoom()
 
@@ -34,31 +54,31 @@ class CameraViewModel(
             handler
         )
 
-    fun changeCamera(manageCamera: ManageCamera, cameraId: Int) {
-        manageCamera.closeCamera(cameraId)
-        manageCamera.openCamera(if (cameraId == 0) 1 else 0)
+    fun changeCamera(cameraId: Int) {
+        manageCamera?.closeCamera(cameraId)
+        manageCamera?.openCamera(if (cameraId == 0) 1 else 0)
     }
 
-    fun makePhoto(manageCamera: ManageCamera) {
-        manageCamera.makePhoto()
+    fun makePhoto() {
+        manageCamera?.makePhoto()
     }
 
-    fun onResume(manageCamera: ManageCamera) {
-        manageCamera.startBackgroundThread()
+    fun onResume() {
+        manageCamera?.startBackgroundThread()
     }
 
-    fun onPause(manageCamera: ManageCamera) {
-        manageCamera.stopBackgroundThread()
-        manageCamera.closeCamera(0)
-        manageCamera.closeCamera(1)
+    fun onPause() {
+        manageCamera?.stopBackgroundThread()
+        manageCamera?.closeCamera(0)
+        manageCamera?.closeCamera(1)
     }
 
-    fun openCamera(manageCamera: ManageCamera) {
-        manageCamera.openCamera(0)
+    fun openCamera() {
+        manageCamera?.openCamera(0)
     }
 
-    fun restart(manageCamera: ManageCamera) {
-        manageCamera.closeCamera(0)
-        manageCamera.openCamera(0)
+    override fun reload() {
+        manageCamera?.closeCamera(0)
+        manageCamera?.openCamera(0)
     }
 }

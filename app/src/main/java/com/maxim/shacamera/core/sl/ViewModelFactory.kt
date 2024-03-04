@@ -15,7 +15,7 @@ interface ViewModelFactory: ProvideViewModel, ClearViewModel {
             return map[clasz] as T
         }
 
-        override fun clearViewModel(clasz: Class<out ViewModel>) {
+        override fun clear(clasz: Class<out ViewModel>) {
             map.remove(clasz)
         }
     }
@@ -25,7 +25,7 @@ interface ViewModelFactory: ProvideViewModel, ClearViewModel {
             throw IllegalStateException("empty viewModelFactory")
         }
 
-        override fun clearViewModel(clasz: Class<out ViewModel>) = Unit
+        override fun clear(clasz: Class<out ViewModel>) = Unit
     }
 }
 
@@ -39,5 +39,5 @@ interface ProvideViewModel {
 }
 
 interface ClearViewModel {
-    fun clearViewModel(clasz: Class<out ViewModel>)
+    fun clear(clasz: Class<out ViewModel>)
 }

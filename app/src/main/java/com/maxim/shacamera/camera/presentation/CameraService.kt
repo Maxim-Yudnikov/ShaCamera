@@ -7,7 +7,6 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.os.Handler
-import android.util.Log
 import android.util.Size
 import com.maxim.shacamera.camera.data.ComparableByArea
 import java.util.Collections
@@ -88,6 +87,7 @@ interface CameraService {
                 }
             }
 
+            //Log.d("MyLog", "ratio: $aspectRatio, big: ${bigEnough.toList()}, notBig: ${notBigEnough.toList()}")
             val size = when {
                 bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
                 notBigEnough.size > 0 -> Collections.max(notBigEnough, ComparableByArea())

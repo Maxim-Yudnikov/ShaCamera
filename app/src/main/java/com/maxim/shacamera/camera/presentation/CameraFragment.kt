@@ -27,8 +27,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
-import com.maxim.shacamera.camera.data.ComparableByArea
-import com.maxim.shacamera.camera.data.ComparableByRatio
 import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
@@ -51,12 +49,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     private var captureRequestBuilder: CaptureRequest.Builder? = null
     private var cameraCaptureSession: CameraCaptureSession? = null
 
-    private var sizeMode = ScreenSizeMode.WIDTH_MAX
-    private var screenRatio: Double = 1.0
-
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-            viewModel.openCamera(this@CameraFragment)
+            viewModel.openCamera()
         }
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
@@ -103,46 +98,36 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         })
 
         binding.photoButton.setOnClickListener {
-            viewModel.makePhoto(this)
+            viewModel.makePhoto()
         }
 
         binding.changeCameraButton.setOnClickListener {
-            viewModel.changeCamera(this, cameraId.toInt())
+            viewModel.changeCamera(cameraId.toInt())
         }
 
-        binding.changeSizeCameraButton.setOnClickListener {
-            sizeMode = when (sizeMode) {
-                ScreenSizeMode.WIDTH_MAX -> ScreenSizeMode.FULL_SCREEN
-                ScreenSizeMode.FULL_SCREEN -> ScreenSizeMode.SQUARE
-                else -> ScreenSizeMode.WIDTH_MAX
-            }
-            if (sizeMode == ScreenSizeMode.FULL_SCREEN) {
-                val displaySize = Point()
-                ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
-                screenRatio = displaySize.let { it.y.toDouble().div(it.x) }
-            } else if (sizeMode == ScreenSizeMode.SQUARE) {
-                screenRatio = 4 / 3.0
-            }
-            viewModel.restart(this)
+        binding.settingsButton.setOnClickListener {
+            viewModel.settings()
         }
 
-        binding.textureView.setOnTouchListener(zoomListener)
+        binding.imageView.setOnTouchListener(zoomListener)
+
+        viewModel.init(savedInstanceState == null, this)
     }
 
     override fun onResume() {
         super.onResume()
-        viewModel.onResume(this)
+        viewModel.onResume()
 
         if (!binding.textureView.isAvailable)
             binding.textureView.surfaceTextureListener = textureListener
         else {
-            viewModel.openCamera(this)
+            viewModel.openCamera()
         }
     }
 
     override fun onPause() {
         super.onPause()
-        viewModel.onPause(this)
+        viewModel.onPause()
     }
 
     override fun closeCamera(id: Int) {
@@ -226,8 +211,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val size = setupPreviewSize(myCameras[cameraId.toInt()], isDimensionSwapped)
         texture!!.setDefaultBufferSize(size.width, size.height)
         updateAspectRatio(
-            sizeMode,
-            setupPreviewSize(myCameras[cameraId.toInt()], isDimensionSwapped),
+            viewModel.screenSizeMode(),
+            size,
             isDimensionSwapped
         )
 
@@ -263,38 +248,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val displaySize = Point()
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 
-        when (mode) {
-            ScreenSizeMode.FULL_SCREEN -> {
-
-                if (isDimensionSwapped)
-                    binding.textureView.setAspectRatio(displaySize.x, displaySize.y)
-                else
-                    binding.textureView.setAspectRatio(displaySize.y, displaySize.x)
-            }
-
-            ScreenSizeMode.WIDTH_MAX -> {
-                if (isDimensionSwapped)
-                    binding.textureView.setAspectRatio(previewSize.height, previewSize.width)
-                else
-                    binding.textureView.setAspectRatio(previewSize.width, previewSize.height)
-            }
-
-            ScreenSizeMode.SQUARE -> {
-                val size = listOf(displaySize.x, displaySize.y).min()
-                if (isDimensionSwapped)
-                    binding.textureView.setAspectRatio(size / 4 * 3, size)
-                else
-                    binding.textureView.setAspectRatio(size, size / 4 * 3)
-            }
-        }
+        mode.setAspectRatio(binding.textureView, displaySize, previewSize, isDimensionSwapped)
     }
 
     private fun setupPreviewSize(camera: CameraService, isDimensionSwapped: Boolean): Size {
-        val comparator =
-            if (sizeMode == ScreenSizeMode.WIDTH_MAX) ComparableByArea() else ComparableByRatio(
-                screenRatio
-            )
-        val largest = camera.getCaptureSize(comparator)
+        val largest = camera.getCaptureSize(viewModel.screenSizeMode().comparator())
         val displaySize = Point()
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 

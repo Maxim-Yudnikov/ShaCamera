@@ -37,7 +37,7 @@
 
 
     <ImageButton
-        android:id="@+id/changeSizeCameraButton"
+        android:id="@+id/settingsButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_alignParentStart="true"
