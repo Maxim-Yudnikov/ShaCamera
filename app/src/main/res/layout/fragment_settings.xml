@@ -37,4 +37,20 @@
         android:text="RTX"
         android:textSize="18sp" />
 
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/dlssSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:text="DLSS 3.5"
+        android:textSize="18sp" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/fsrSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:text="FSR 3.0"
+        android:textSize="18sp" />
+
 </LinearLayout>

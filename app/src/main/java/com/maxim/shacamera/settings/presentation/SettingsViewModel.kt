@@ -20,7 +20,9 @@ class SettingsViewModel(
         communication.update(
             SettingsState.Base(
                 manageRatio.currentRatioPosition(),
-                manageFilters.rtxIsOn()
+                manageFilters.rtxIsOn(),
+                manageFilters.dlssIsOn(),
+                manageFilters.fsrIsOn()
             )
         )
     }
@@ -32,6 +34,16 @@ class SettingsViewModel(
 
     fun setRtx(value: Boolean) {
         manageFilters.setRxt(value)
+        init()
+    }
+
+    fun setDlss(value: Boolean) {
+        manageFilters.setDlss(value)
+        init()
+    }
+
+    fun setFsr(value: Boolean) {
+        manageFilters.setFsr(value)
         init()
     }
 

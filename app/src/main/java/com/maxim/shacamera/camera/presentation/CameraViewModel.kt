@@ -28,7 +28,6 @@ class CameraViewModel(
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
             manageRatio.setCallback(this)
-            manageFilters.setCallback(this)
             this.manageCamera = manageCamera
         }
     }

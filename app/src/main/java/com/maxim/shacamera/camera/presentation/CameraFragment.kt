@@ -1,5 +1,6 @@
 package com.maxim.shacamera.camera.presentation
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -63,7 +64,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             )
 
             viewModel.cameraFilters().forEach {
-                it.show(scaledBitmap, requireContext(), width, height, viewModel.bitmapZoom())
+                it.show(scaledBitmap, requireContext(), viewModel.bitmapZoom())
             }
 
             binding.imageView.setImageBitmap(scaledBitmap)
@@ -75,8 +76,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture) = false
     }
 
-
-    private val zoomListener = View.OnTouchListener { v, event ->
+    //todo
+    @SuppressLint("ClickableViewAccessibility")
+    private val zoomListener = View.OnTouchListener { _, event ->
         viewModel.handleZoom(
             cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString()),
             event!!,
@@ -88,6 +90,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         )
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -268,7 +271,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private fun isDimensionSwapped(): Boolean {
         val displayRotation = ContextCompat.getDisplayOrDefault(requireActivity()).rotation
-        val sensorOrientation = cameraManager!!.getCameraCharacteristics("0") //todo
+        val sensorOrientation = cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString())
             .get(CameraCharacteristics.SENSOR_ORIENTATION)
         return when (displayRotation) {
             Surface.ROTATION_0, Surface.ROTATION_180 -> {

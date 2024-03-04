@@ -39,8 +39,16 @@ class SettingsBottomFragment : BottomSheetDialogFragment() {
             viewModel.setRtx(isChecked)
         }
 
+        binding.dlssSwitch.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setDlss(isChecked)
+        }
+
+        binding.fsrSwitch.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setFsr(isChecked)
+        }
+
         viewModel.observe(this) {
-            it.show(binding.radioGroup, binding.rtxSwitch)
+            it.show(binding.radioGroup, binding.rtxSwitch, binding.dlssSwitch, binding.fsrSwitch)
         }
 
         viewModel.init()
