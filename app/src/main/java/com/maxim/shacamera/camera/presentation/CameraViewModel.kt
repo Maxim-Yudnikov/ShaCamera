@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.widget.TextView
 import androidx.lifecycle.ViewModel
 import com.maxim.shacamera.camera.data.CameraRepository
+import com.maxim.shacamera.camera.filters.CameraFilter
 import com.maxim.shacamera.core.presentation.Navigation
 import com.maxim.shacamera.core.presentation.Reload
 import com.maxim.shacamera.settings.data.ManageFilters
@@ -38,7 +39,7 @@ class CameraViewModel(
         navigation.update(SettingsScreen)
     }
 
-    fun rtxIsOn() = manageFilters.rtxIsOn()
+    fun cameraFilters(): List<CameraFilter> = manageFilters.allCameraFilters()
 
     fun currentCamera() = myCameras[currentCameraId]
     fun currentCameraId() = currentCameraId

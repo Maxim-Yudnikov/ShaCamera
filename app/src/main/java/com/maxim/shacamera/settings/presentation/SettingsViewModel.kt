@@ -30,8 +30,8 @@ class SettingsViewModel(
         init()
     }
 
-    fun setFilter(value: Boolean, position: Int) {
-        manageFilters.setFilter(value, position)
+    fun setRtx(value: Boolean) {
+        manageFilters.setRxt(value)
         init()
     }
 

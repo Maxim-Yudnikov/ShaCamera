@@ -3,7 +3,6 @@ package com.maxim.shacamera.camera.presentation
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Point
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
@@ -63,17 +62,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 height
             )
 
-            if (viewModel.rtxIsOn()) {
-                val rtxBitmap =
-                    ContextCompat.getDrawable(requireContext(), R.drawable.rtx_on)!!
-                        .toBitmap((180 / viewModel.bitmapZoom()).toInt(), (96 / viewModel.bitmapZoom()).toInt())
-                val canvas = Canvas(scaledBitmap)
-                canvas.drawBitmap(
-                    rtxBitmap,
-                    width / 10f * 6,
-                    height / 10f * 8,
-                    null
-                )
+            viewModel.cameraFilters().forEach {
+                it.show(scaledBitmap, requireContext(), width, height, viewModel.bitmapZoom())
             }
 
             binding.imageView.setImageBitmap(scaledBitmap)
