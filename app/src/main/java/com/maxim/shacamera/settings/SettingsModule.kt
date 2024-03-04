@@ -10,7 +10,8 @@ class SettingsModule(private val core: Core, private val clearViewModel: ClearVi
     Module<SettingsViewModel> {
     override fun viewModel() = SettingsViewModel(
         SettingsCommunication.Base(),
-        core.ratioManager(),
+        core.manageRatio(),
+        core.manageFilters(),
         clearViewModel
     )
 }

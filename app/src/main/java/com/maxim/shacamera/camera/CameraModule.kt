@@ -8,7 +8,8 @@ import com.maxim.shacamera.core.sl.Module
 class CameraModule(private val core: Core) : Module<CameraViewModel> {
     override fun viewModel() = CameraViewModel(
         CameraRepository.Base(),
-        core.ratioManager(),
+        core.manageRatio(),
+        core.manageFilters(),
         core.navigation()
     )
 }

@@ -35,8 +35,12 @@ class SettingsBottomFragment : BottomSheetDialogFragment() {
             }
         }
 
+        binding.rtxSwitch.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setFilter(isChecked, 0)
+        }
+
         viewModel.observe(this) {
-            it.show(binding.radioGroup)
+            it.show(binding.radioGroup, binding.rtxSwitch)
         }
 
         viewModel.init()

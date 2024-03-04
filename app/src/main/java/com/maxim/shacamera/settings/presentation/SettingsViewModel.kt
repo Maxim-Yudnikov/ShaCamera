@@ -6,20 +6,32 @@ import androidx.lifecycle.ViewModel
 import com.maxim.shacamera.core.presentation.Communication
 import com.maxim.shacamera.core.presentation.SimpleInit
 import com.maxim.shacamera.core.sl.ClearViewModel
-import com.maxim.shacamera.settings.data.RatioManager
+import com.maxim.shacamera.settings.data.ManageFilters
+import com.maxim.shacamera.settings.data.ManageRatio
 
 class SettingsViewModel(
     private val communication: SettingsCommunication,
-    private val ratioManager: RatioManager,
+    private val manageRatio: ManageRatio,
+    private val manageFilters: ManageFilters,
     private val clearViewModel: ClearViewModel
-): ViewModel(), Communication.Observe<SettingsState>, SimpleInit {
+) : ViewModel(), Communication.Observe<SettingsState>, SimpleInit {
 
     override fun init() {
-        communication.update(SettingsState.Base(ratioManager.currentRatioPosition()))
+        communication.update(
+            SettingsState.Base(
+                manageRatio.currentRatioPosition(),
+                manageFilters.rtxIsOn()
+            )
+        )
     }
 
     fun setRatio(position: Int) {
-        ratioManager.setRatio(position)
+        manageRatio.setRatio(position)
+        init()
+    }
+
+    fun setFilter(value: Boolean, position: Int) {
+        manageFilters.setFilter(value, position)
         init()
     }
 

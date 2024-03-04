@@ -10,12 +10,14 @@ import androidx.lifecycle.ViewModel
 import com.maxim.shacamera.camera.data.CameraRepository
 import com.maxim.shacamera.core.presentation.Navigation
 import com.maxim.shacamera.core.presentation.Reload
-import com.maxim.shacamera.settings.data.RatioManager
+import com.maxim.shacamera.settings.data.ManageFilters
+import com.maxim.shacamera.settings.data.ManageRatio
 import com.maxim.shacamera.settings.presentation.SettingsScreen
 
 class CameraViewModel(
     private val repository: CameraRepository,
-    private val ratioManager: RatioManager,
+    private val manageRatio: ManageRatio,
+    private val manageFilters: ManageFilters,
     private val navigation: Navigation.Update
 ) : ViewModel(), Reload {
     private var manageCamera: ManageCamera? = null
@@ -24,16 +26,19 @@ class CameraViewModel(
 
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
-            ratioManager.setCallback(this)
+            manageRatio.setCallback(this)
+            manageFilters.setCallback(this)
             this.manageCamera = manageCamera
         }
     }
 
-    fun screenSizeMode() = ratioManager.currentSizeMode()
+    fun screenSizeMode() = manageRatio.currentSizeMode()
 
     fun settings() {
         navigation.update(SettingsScreen)
     }
+
+    fun rtxIsOn() = manageFilters.rtxIsOn()
 
     fun currentCamera() = myCameras[currentCameraId]
     fun currentCameraId() = currentCameraId

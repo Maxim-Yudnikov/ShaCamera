@@ -3,6 +3,7 @@ package com.maxim.shacamera.camera.presentation
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Point
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
@@ -54,14 +55,28 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             val bitmap = binding.textureView.bitmap!!
             val width = (binding.textureView.width / viewModel.bitmapZoom()).toInt()
             val height = (binding.textureView.height / viewModel.bitmapZoom()).toInt()
-            val newBitmap = Bitmap.createBitmap(
+            val scaledBitmap = Bitmap.createBitmap(
                 bitmap,
                 bitmap.width / 2 - width / 2,
                 bitmap.height / 2 - height / 2,
                 width,
                 height
             )
-            binding.imageView.setImageBitmap(newBitmap)
+
+            if (viewModel.rtxIsOn()) {
+                val rtxBitmap =
+                    ContextCompat.getDrawable(requireContext(), R.drawable.rtx_on)!!
+                        .toBitmap((180 / viewModel.bitmapZoom()).toInt(), (96 / viewModel.bitmapZoom()).toInt())
+                val canvas = Canvas(scaledBitmap)
+                canvas.drawBitmap(
+                    rtxBitmap,
+                    width / 10f * 6,
+                    height / 10f * 8,
+                    null
+                )
+            }
+
+            binding.imageView.setImageBitmap(scaledBitmap)
         }
 
         override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) =

@@ -4,13 +4,13 @@ import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.data.SimpleStorage
 import com.maxim.shacamera.core.presentation.Reload
 
-interface RatioManager {
+interface ManageRatio {
     fun setCallback(reload: Reload)
     fun setRatio(position: Int)
     fun currentRatioPosition(): Int
     fun currentSizeMode(): ScreenSizeMode
 
-    class Base(private val simpleStorage: SimpleStorage): RatioManager {
+    class Base(private val simpleStorage: SimpleStorage): ManageRatio {
         private var reload: Reload? = null
 
         override fun setCallback(reload: Reload) {
