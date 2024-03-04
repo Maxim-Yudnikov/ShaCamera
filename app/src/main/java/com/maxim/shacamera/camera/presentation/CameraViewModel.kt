@@ -19,6 +19,8 @@ class CameraViewModel(
     private val navigation: Navigation.Update
 ) : ViewModel(), Reload {
     private var manageCamera: ManageCamera? = null
+    private val myCameras = mutableListOf<CameraService>()
+    private var currentCameraId = 0
 
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
@@ -31,6 +33,15 @@ class CameraViewModel(
 
     fun settings() {
         navigation.update(SettingsScreen)
+    }
+
+    fun currentCamera() = myCameras[currentCameraId]
+    fun currentCameraId() = currentCameraId
+
+    fun setCameras(list: List<CameraService>) {
+        myCameras.clear()
+        myCameras.addAll(list)
+        currentCameraId = 0
     }
 
     fun bitmapZoom() = repository.bitmapZoom()
@@ -54,9 +65,10 @@ class CameraViewModel(
             handler
         )
 
-    fun changeCamera(cameraId: Int) {
-        manageCamera?.closeCamera(cameraId)
-        manageCamera?.openCamera(if (cameraId == 0) 1 else 0)
+    fun changeCamera() {
+        myCameras[currentCameraId].closeCamera()
+        currentCameraId = if (currentCameraId == 0) 1 else 0
+        manageCamera?.openCamera(myCameras[currentCameraId])
     }
 
     fun makePhoto() {
@@ -69,16 +81,17 @@ class CameraViewModel(
 
     fun onPause() {
         manageCamera?.stopBackgroundThread()
-        manageCamera?.closeCamera(0)
-        manageCamera?.closeCamera(1)
+        myCameras.forEach {
+            it.closeCamera()
+        }
     }
 
     fun openCamera() {
-        manageCamera?.openCamera(0)
+        manageCamera?.openCamera(myCameras[currentCameraId])
     }
 
     override fun reload() {
-        manageCamera?.closeCamera(0)
-        manageCamera?.openCamera(0)
+        myCameras[currentCameraId].closeCamera()
+        manageCamera?.openCamera(myCameras[currentCameraId])
     }
 }

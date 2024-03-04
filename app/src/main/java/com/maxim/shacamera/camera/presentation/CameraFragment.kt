@@ -23,7 +23,6 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
@@ -40,9 +39,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private var backgroundThread: HandlerThread? = null
     private var handler: Handler? = null
-
-    private val myCameras = mutableListOf<CameraService>()
-    private var cameraId = ""
 
     private var cameraManager: CameraManager? = null
 
@@ -77,7 +73,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private val zoomListener = View.OnTouchListener { v, event ->
         viewModel.handleZoom(
-            cameraManager!!.getCameraCharacteristics(cameraId),
+            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString()),
             event!!,
             listOf(binding.textureView.width, binding.textureView.height).min(),
             binding.zoomValueTextView,
@@ -87,13 +83,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         )
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         cameraManager = requireActivity().getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        myCameras.clear()
-        myCameras.addAll(cameraManager!!.cameraIdList.map { id ->
+        viewModel.setCameras(cameraManager!!.cameraIdList.map { id ->
             CameraService.Base(id, cameraManager!!, this)
         })
 
@@ -102,7 +96,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         binding.changeCameraButton.setOnClickListener {
-            viewModel.changeCamera(cameraId.toInt())
+            viewModel.changeCamera()
         }
 
         binding.settingsButton.setOnClickListener {
@@ -130,14 +124,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         viewModel.onPause()
     }
 
-    override fun closeCamera(id: Int) {
-        myCameras[id].closeCamera()
-    }
-
-    override fun openCamera(id: Int) {
-        myCameras[id].openCamera(handler!!)
-        //todo need?
-        cameraId = myCameras[id].cameraId()
+    override fun openCamera(camera: CameraService) {
+        camera.openCamera(handler!!)
     }
 
     override fun makePhoto() {
@@ -208,7 +196,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val surface = Surface(texture)
 
         val isDimensionSwapped = isDimensionSwapped()
-        val size = setupPreviewSize(myCameras[cameraId.toInt()], isDimensionSwapped)
+        val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped)
         texture!!.setDefaultBufferSize(size.width, size.height)
         updateAspectRatio(
             viewModel.screenSizeMode(),
@@ -292,8 +280,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 }
 
 interface ManageCamera {
-    fun closeCamera(id: Int)
-    fun openCamera(id: Int)
+    fun openCamera(camera: CameraService)
     fun makePhoto()
     fun startBackgroundThread()
     fun stopBackgroundThread()
