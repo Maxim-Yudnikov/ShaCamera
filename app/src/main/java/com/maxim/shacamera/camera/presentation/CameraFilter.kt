@@ -39,7 +39,7 @@ interface CameraFilter {
     object Dlss: CameraFilter {
         override fun show(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
-                (bitmap.width / 2.5f).toInt(),
+                (420 / bitmapZoom).toInt(),
                 (40 / bitmapZoom).toInt()
             )
             val filterBitmap =

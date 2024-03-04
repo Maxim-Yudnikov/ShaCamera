@@ -2,7 +2,9 @@ package com.maxim.shacamera.main
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
@@ -36,18 +38,36 @@ class MainActivity : AppCompatActivity(), ProvideViewModel {
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.CAMERA)
         }
-        if (ContextCompat.checkSelfPermission(
-                applicationContext,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2)
+            if (ContextCompat.checkSelfPermission(
+                    applicationContext,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
 
         if (permissionList.isNotEmpty()) {
             requestPermissions(
                 permissionList.toTypedArray(), 1
             )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 1) {
+            grantResults.forEach {
+                if (it != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Please gives permissions", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+            }
         }
     }
 

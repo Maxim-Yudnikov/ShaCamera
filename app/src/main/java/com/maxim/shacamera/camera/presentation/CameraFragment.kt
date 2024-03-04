@@ -1,8 +1,10 @@
 package com.maxim.shacamera.camera.presentation
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Point
 import android.graphics.SurfaceTexture
@@ -17,12 +19,14 @@ import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
@@ -58,6 +62,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             val bitmap = binding.textureView.bitmap!!
             val width = (binding.textureView.width / viewModel.bitmapZoom()).toInt()
             val height = (binding.textureView.height / viewModel.bitmapZoom()).toInt()
+            Log.d("MyLog", "x: ${bitmap.width / 2 - width / 2}, y: ${bitmap.height / 2 - height / 2}")
             val scaledBitmap = Bitmap.createBitmap(
                 bitmap,
                 bitmap.width / 2 - width / 2,
@@ -136,7 +141,13 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun openCamera(camera: CameraService) {
-        camera.openCamera(handler!!)
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            camera.openCamera(handler!!)
+        }
     }
 
     override fun makePhoto() {
@@ -201,13 +212,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     override fun stopBackgroundThread() {
         backgroundThread!!.quitSafely()
-        try {
-            backgroundThread!!.join()
-            backgroundThread = null
-            handler = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        backgroundThread!!.join()
+        backgroundThread = null
+        handler = null
     }
 
     override fun createCameraPreviewSession(cameraDevice: CameraDevice) {
@@ -282,8 +289,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private fun isDimensionSwapped(): Boolean {
         val displayRotation = ContextCompat.getDisplayOrDefault(requireActivity()).rotation
-        val sensorOrientation = cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString())
-            .get(CameraCharacteristics.SENSOR_ORIENTATION)
+        val sensorOrientation =
+            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString())
+                .get(CameraCharacteristics.SENSOR_ORIENTATION)
         return when (displayRotation) {
             Surface.ROTATION_0, Surface.ROTATION_180 -> {
                 sensorOrientation == 90 || sensorOrientation == 270

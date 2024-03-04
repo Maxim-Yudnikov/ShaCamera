@@ -25,6 +25,8 @@ interface CameraService {
 
     fun getCaptureSize(comparator: Comparator<Size>): Size
 
+    fun cameraId(): String
+
     class Base(
         private val cameraId: String,
         private val cameraManager: CameraManager,
@@ -99,5 +101,7 @@ interface CameraService {
                 .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return Size(0, 0)
             return map.getOutputSizes(ImageFormat.JPEG).asList().maxWith(comparator) ?: Size(0, 0)
         }
+
+        override fun cameraId() = cameraId
     }
 }

@@ -18,10 +18,10 @@
         android:background="@color/black" />
 
     <ImageView
-        android:layout_marginTop="60dp"
         android:id="@+id/imageView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="match_parent"
+        android:layout_marginBottom="50dp"/>
 
     <View
         android:id="@+id/flash"

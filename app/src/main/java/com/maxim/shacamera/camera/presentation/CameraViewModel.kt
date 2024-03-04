@@ -22,7 +22,7 @@ class CameraViewModel(
 ) : ViewModel(), Reload {
     private var manageCamera: ManageCamera? = null
     private val myCameras = mutableListOf<CameraService>()
-    private var currentCameraId = 0
+    private var currentCameraIndex = 0
 
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
@@ -39,13 +39,13 @@ class CameraViewModel(
 
     fun cameraFilters(): List<CameraFilter> = manageFilters.allCameraFilters()
 
-    fun currentCamera() = myCameras[currentCameraId]
-    fun currentCameraId() = currentCameraId
+    fun currentCamera() = myCameras[currentCameraIndex]
+    fun currentCameraId() = myCameras[currentCameraIndex].cameraId()
 
     fun setCameras(list: List<CameraService>) {
         myCameras.clear()
         myCameras.addAll(list)
-        currentCameraId = 0
+        currentCameraIndex = 0
     }
 
     fun bitmapZoom() = repository.bitmapZoom()
@@ -58,8 +58,8 @@ class CameraViewModel(
         captureRequestBuilder: CaptureRequest.Builder,
         cameraCaptureSession: CameraCaptureSession,
         handler: Handler
-    ): Boolean =
-        repository.handleZoom(
+    ): Boolean {
+        return repository.handleZoom(
             cameraCharacteristics,
             event,
             screenMinSize,
@@ -68,11 +68,12 @@ class CameraViewModel(
             cameraCaptureSession,
             handler
         )
+    }
 
     fun changeCamera() {
-        myCameras[currentCameraId].closeCamera()
-        currentCameraId = if (currentCameraId == 0) 1 else 0
-        manageCamera?.openCamera(myCameras[currentCameraId])
+        myCameras[currentCameraIndex].closeCamera()
+        currentCameraIndex = if (currentCameraIndex == 0) 1 else 0
+        manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 
     fun makePhoto() {
@@ -91,11 +92,11 @@ class CameraViewModel(
     }
 
     fun openCamera() {
-        manageCamera?.openCamera(myCameras[currentCameraId])
+        manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 
     override fun reload() {
-        myCameras[currentCameraId].closeCamera()
-        manageCamera?.openCamera(myCameras[currentCameraId])
+        myCameras[currentCameraIndex].closeCamera()
+        manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 }
