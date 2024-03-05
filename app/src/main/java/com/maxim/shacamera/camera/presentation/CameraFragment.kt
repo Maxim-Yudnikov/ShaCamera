@@ -132,10 +132,20 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             }
             var xDown = 0f
             var yDown = 0f
+            var doubleClick = false
             imageView.setOnTouchListener { v, event ->
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                     xDown = event.x
                     yDown = event.y
+                }
+
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    if (doubleClick) {
+                        doubleClick = false
+                        binding.stickersLayout.removeView(v)
+                    }
+                    doubleClick = true
+                    Handler().postDelayed({ doubleClick = false }, 400)
                 }
 
                 if (event.actionMasked == MotionEvent.ACTION_MOVE) {
