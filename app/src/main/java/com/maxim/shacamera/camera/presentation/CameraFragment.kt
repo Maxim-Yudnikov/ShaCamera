@@ -2,10 +2,12 @@ package com.maxim.shacamera.camera.presentation
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.ActionBar.LayoutParams
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Point
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
@@ -20,11 +22,14 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.provider.MediaStore
 import android.util.Size
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -120,6 +125,35 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             viewModel.settings()
         }
 
+        binding.stickersButton.setOnClickListener {
+            val imageView = ImageView(requireContext()).apply {
+                layoutParams = LayoutParams(400, 400, Gravity.CENTER)
+                setImageResource(R.drawable.wednesday)
+            }
+            var xDown = 0f
+            var yDown = 0f
+            imageView.setOnTouchListener { v, event ->
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    xDown = event.x
+                    yDown = event.y
+                }
+
+                if (event.actionMasked == MotionEvent.ACTION_MOVE) {
+                    val movedX = event.x
+                    val movedY = event.y
+
+                    val distanceX = movedX - xDown
+                    val distanceY = movedY - yDown
+
+                    v.x += distanceX
+                    v.y += distanceY
+                }
+
+                true
+            }
+            binding.stickersLayout.addView(imageView)
+        }
+
         binding.imageView.setOnTouchListener(zoomListener)
 
         viewModel.init(savedInstanceState == null, this)
@@ -152,7 +186,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun makePhoto() {
-        val bitmap = binding.imageView.drawable.toBitmap()
+        val mainBitmap = binding.imageView.drawable.toBitmap()
+        binding.stickersLayout.draw(Canvas(mainBitmap))
+
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
@@ -170,7 +206,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             if (uri != null) {
                 val outputStream = contentResolver.openOutputStream(uri)
                 if (outputStream != null) {
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
                     outputStream.close()
                 }
                 values.put(MediaStore.Images.Media.IS_PENDING, false)
@@ -193,7 +229,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             val imageName = "${System.currentTimeMillis()}.jpg"
             val imageFile = File(imageFileFolder, imageName)
             val outputStream = FileOutputStream(imageFile)
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+            mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             outputStream.close()
             values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
