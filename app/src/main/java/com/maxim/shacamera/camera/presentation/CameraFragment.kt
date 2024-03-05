@@ -37,6 +37,7 @@ import com.maxim.shacamera.R
 import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
+import com.maxim.shacamera.stickers.data.ShowSticker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -44,7 +45,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera {
+class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera, ShowSticker {
     override val viewModelClass = CameraViewModel::class.java
     override fun bind(inflater: LayoutInflater, container: ViewGroup?) =
         FragmentCameraBinding.inflate(inflater, container, false)
@@ -126,42 +127,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         binding.stickersButton.setOnClickListener {
-            val imageView = ImageView(requireContext()).apply {
-                layoutParams = LayoutParams(400, 400, Gravity.CENTER)
-                setImageResource(R.drawable.wednesday)
-            }
-            var xDown = 0f
-            var yDown = 0f
-            var doubleClick = false
-            imageView.setOnTouchListener { v, event ->
-                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                    xDown = event.x
-                    yDown = event.y
-                }
-
-                if (event.actionMasked == MotionEvent.ACTION_UP) {
-                    if (doubleClick) {
-                        doubleClick = false
-                        binding.stickersLayout.removeView(v)
-                    }
-                    doubleClick = true
-                    Handler().postDelayed({ doubleClick = false }, 400)
-                }
-
-                if (event.actionMasked == MotionEvent.ACTION_MOVE) {
-                    val movedX = event.x
-                    val movedY = event.y
-
-                    val distanceX = movedX - xDown
-                    val distanceY = movedY - yDown
-
-                    v.x += distanceX
-                    v.y += distanceY
-                }
-
-                true
-            }
-            binding.stickersLayout.addView(imageView)
+            viewModel.stickers()
         }
 
         binding.imageView.setOnTouchListener(zoomListener)
@@ -352,6 +318,45 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
             else -> false
         }
+    }
+
+    override fun showSticker(drawableId: Int) {
+        val imageView = ImageView(requireContext()).apply {
+            layoutParams = LayoutParams(400, 400, Gravity.CENTER)
+            setImageResource(drawableId)
+        }
+        var xDown = 0f
+        var yDown = 0f
+        var doubleClick = false
+        imageView.setOnTouchListener { v, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                xDown = event.x
+                yDown = event.y
+            }
+
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                if (doubleClick) {
+                    doubleClick = false
+                    binding.stickersLayout.removeView(v)
+                }
+                doubleClick = true
+                Handler().postDelayed({ doubleClick = false }, 400)
+            }
+
+            if (event.actionMasked == MotionEvent.ACTION_MOVE) {
+                val movedX = event.x
+                val movedY = event.y
+
+                val distanceX = movedX - xDown
+                val distanceY = movedY - yDown
+
+                v.x += distanceX
+                v.y += distanceY
+            }
+
+            true
+        }
+        binding.stickersLayout.addView(imageView)
     }
 }
 

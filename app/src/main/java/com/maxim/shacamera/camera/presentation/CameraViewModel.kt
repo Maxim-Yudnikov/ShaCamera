@@ -13,13 +13,17 @@ import com.maxim.shacamera.core.presentation.Reload
 import com.maxim.shacamera.settings.data.ManageFilters
 import com.maxim.shacamera.settings.data.ManageRatio
 import com.maxim.shacamera.settings.presentation.SettingsScreen
+import com.maxim.shacamera.stickers.data.ShowSticker
+import com.maxim.shacamera.stickers.data.StickersSharedCommunication
+import com.maxim.shacamera.stickers.presentation.StickersScreen
 
 class CameraViewModel(
     private val repository: CameraRepository,
     private val manageRatio: ManageRatio,
     private val manageFilters: ManageFilters,
+    private val stickersSharedCommunication: StickersSharedCommunication.Read,
     private val navigation: Navigation.Update
-) : ViewModel(), Reload {
+) : ViewModel(), Reload, ShowSticker {
     private var manageCamera: ManageCamera? = null
     private val myCameras = mutableListOf<CameraService>()
     private var currentCameraIndex = 0
@@ -28,6 +32,7 @@ class CameraViewModel(
         if (isFirstRun) {
             manageRatio.setCallback(this)
             manageFilters.setCallback(this)
+            stickersSharedCommunication.setCallback(this)
             this.manageCamera = manageCamera
         }
     }
@@ -36,6 +41,10 @@ class CameraViewModel(
 
     fun settings() {
         navigation.update(SettingsScreen)
+    }
+
+    fun stickers() {
+        navigation.update(StickersScreen)
     }
 
     fun dlssIsOn() = manageFilters.dlssIsOn()
@@ -101,5 +110,10 @@ class CameraViewModel(
     override fun reload() {
         myCameras[currentCameraIndex].closeCamera()
         manageCamera?.openCamera(myCameras[currentCameraIndex])
+    }
+
+    //todo
+    override fun showSticker(drawableId: Int) {
+        (manageCamera as ShowSticker).showSticker(drawableId)
     }
 }

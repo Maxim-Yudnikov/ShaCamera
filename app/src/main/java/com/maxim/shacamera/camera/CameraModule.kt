@@ -10,6 +10,7 @@ class CameraModule(private val core: Core) : Module<CameraViewModel> {
         CameraRepository.Base(),
         core.manageRatio(),
         core.manageFilters(),
+        core.stickerSharedCommunication(),
         core.navigation()
     )
 }

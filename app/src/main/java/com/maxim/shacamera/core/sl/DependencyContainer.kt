@@ -7,6 +7,8 @@ import com.maxim.shacamera.main.MainModule
 import com.maxim.shacamera.main.MainViewModel
 import com.maxim.shacamera.settings.SettingsModule
 import com.maxim.shacamera.settings.presentation.SettingsViewModel
+import com.maxim.shacamera.stickers.StickersModule
+import com.maxim.shacamera.stickers.presentation.StickersViewModel
 
 interface DependencyContainer {
     fun <T : ViewModel> module(clasz: Class<T>): Module<T>
@@ -26,6 +28,7 @@ interface DependencyContainer {
             MainViewModel::class.java -> MainModule(core)
             CameraViewModel::class.java -> CameraModule(core)
             SettingsViewModel::class.java -> SettingsModule(core, clear)
+            StickersViewModel::class.java -> StickersModule(core, clear)
             else -> next.module(clasz)
         } as Module<T>
     }
