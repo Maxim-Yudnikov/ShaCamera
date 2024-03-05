@@ -2,7 +2,6 @@ package com.maxim.shacamera.camera.presentation
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.ActionBar.LayoutParams
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -22,17 +21,17 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.provider.MediaStore
 import android.util.Size
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.RelativeLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
+import com.easystudio.rotateimageview.RotateZoomImageView
 import com.maxim.shacamera.R
 import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
@@ -45,7 +44,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera, ShowSticker {
+class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera,
+    ShowSticker {
     override val viewModelClass = CameraViewModel::class.java
     override fun bind(inflater: LayoutInflater, container: ViewGroup?) =
         FragmentCameraBinding.inflate(inflater, container, false)
@@ -321,40 +321,20 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun showSticker(drawableId: Int) {
-        val imageView = ImageView(requireContext()).apply {
-            layoutParams = LayoutParams(400, 400, Gravity.CENTER)
+        val imageView = RotateZoomImageView(requireContext()).apply {
+            layoutParams = RelativeLayout.LayoutParams(400, 400)
             setImageResource(drawableId)
         }
-        var xDown = 0f
-        var yDown = 0f
         var doubleClick = false
         imageView.setOnTouchListener { v, event ->
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                xDown = event.x
-                yDown = event.y
-            }
-
             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                if (doubleClick) {
-                    doubleClick = false
+                if (doubleClick)
                     binding.stickersLayout.removeView(v)
-                }
                 doubleClick = true
                 Handler().postDelayed({ doubleClick = false }, 400)
             }
 
-            if (event.actionMasked == MotionEvent.ACTION_MOVE) {
-                val movedX = event.x
-                val movedY = event.y
-
-                val distanceX = movedX - xDown
-                val distanceY = movedY - yDown
-
-                v.x += distanceX
-                v.y += distanceY
-            }
-
-            true
+            imageView.onTouch(v, event)
         }
         binding.stickersLayout.addView(imageView)
     }
