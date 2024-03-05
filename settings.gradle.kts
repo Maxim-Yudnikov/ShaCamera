@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ShaCamera"
 include(":app")
+include (":openCV")
  

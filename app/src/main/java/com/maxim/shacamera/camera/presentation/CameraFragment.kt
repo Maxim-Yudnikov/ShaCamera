@@ -19,7 +19,6 @@ import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.provider.MediaStore
-import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.Surface
@@ -62,7 +61,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             val bitmap = binding.textureView.bitmap!!
             val width = (binding.textureView.width / viewModel.bitmapZoom()).toInt()
             val height = (binding.textureView.height / viewModel.bitmapZoom()).toInt()
-            Log.d("MyLog", "x: ${bitmap.width / 2 - width / 2}, y: ${bitmap.height / 2 - height / 2}")
             val scaledBitmap = Bitmap.createBitmap(
                 bitmap,
                 bitmap.width / 2 - width / 2,
