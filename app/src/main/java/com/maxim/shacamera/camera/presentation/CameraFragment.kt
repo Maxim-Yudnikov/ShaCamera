@@ -70,7 +70,10 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             )
 
             viewModel.cameraFilters().forEach {
-                it.show(scaledBitmap, requireContext(), viewModel.bitmapZoom())
+                it.showFilter(scaledBitmap)
+            }
+            viewModel.cameraFilters().forEach {
+                it.showImage(scaledBitmap, requireContext(), viewModel.bitmapZoom())
             }
 
             binding.imageView.setImageBitmap(scaledBitmap)
@@ -274,14 +277,16 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 binding.root.width,
                 displaySize.y,
                 displaySize.x,
-                largest
+                largest,
+                viewModel.dlssIsOn()
             ) else
             camera.getOptimalPreviewSize(
                 binding.root.width,
                 binding.root.height,
                 displaySize.x,
                 displaySize.y,
-                largest
+                largest,
+                viewModel.dlssIsOn()
             )
     }
 

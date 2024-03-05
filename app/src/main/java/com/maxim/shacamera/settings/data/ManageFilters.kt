@@ -2,8 +2,11 @@ package com.maxim.shacamera.settings.data
 
 import com.maxim.shacamera.camera.presentation.CameraFilter
 import com.maxim.shacamera.core.data.SimpleStorage
+import com.maxim.shacamera.core.presentation.Reload
 
 interface ManageFilters {
+    fun setCallback(reload: Reload)
+
     fun setRxt(value: Boolean)
     fun setDlss(value: Boolean)
     fun setFsr(value: Boolean)
@@ -15,6 +18,11 @@ interface ManageFilters {
     fun allCameraFilters(): List<CameraFilter>
 
     class Base(private val simpleStorage: SimpleStorage) : ManageFilters {
+        private var callback: Reload? = null
+
+        override fun setCallback(reload: Reload) {
+            callback = reload
+        }
 
         override fun setRxt(value: Boolean) {
             simpleStorage.save(RTX_KEY, value)
@@ -22,6 +30,7 @@ interface ManageFilters {
 
         override fun setDlss(value: Boolean) {
             simpleStorage.save(DLSS_KEY, value)
+            callback?.reload()
         }
 
         override fun setFsr(value: Boolean) {
@@ -34,12 +43,12 @@ interface ManageFilters {
 
         override fun allCameraFilters(): List<CameraFilter> {
             val list = mutableListOf<CameraFilter>()
+            if (fsrIsOn())
+                list.add(CameraFilter.Fsr)
             if (rtxIsOn())
                 list.add(CameraFilter.Rtx)
             if (dlssIsOn())
                 list.add(CameraFilter.Dlss)
-            if (fsrIsOn())
-                list.add(CameraFilter.Fsr)
             return list
         }
 

@@ -7,16 +7,29 @@ import android.util.Size
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maxim.shacamera.R
+import org.opencv.android.OpenCVLoader
+import org.opencv.android.Utils
+import org.opencv.core.Core.LUT
+import org.opencv.core.Mat
+import org.opencv.imgproc.Imgproc
 
 interface CameraFilter {
-    fun show(bitmap: Bitmap, context: Context, bitmapZoom: Float)
+    fun showFilter(bitmap: Bitmap)
+    fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float)
 
-    object Rtx: CameraFilter {
-        override fun show(
-            bitmap: Bitmap,
-            context: Context,
-            bitmapZoom: Float
-        ) {
+    object Rtx : CameraFilter {
+        override fun showFilter(bitmap: Bitmap) {
+            if (OpenCVLoader.initLocal()) {
+                val mat = Mat()
+                Utils.bitmapToMat(bitmap, mat)
+                val lut = Lut().createLUT(10)
+                LUT(mat, lut, mat)
+                val result = Lut().reduceColors(mat, 150, 150, 0)
+                Utils.matToBitmap(result, bitmap)
+            }
+        }
+
+        override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
                 (180 / bitmapZoom).toInt(),
                 (78 / bitmapZoom).toInt()
@@ -36,8 +49,11 @@ interface CameraFilter {
         }
     }
 
-    object Dlss: CameraFilter {
-        override fun show(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
+    object Dlss : CameraFilter {
+        override fun showFilter(bitmap: Bitmap) = Unit
+
+
+        override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
                 (420 / bitmapZoom).toInt(),
                 (40 / bitmapZoom).toInt()
@@ -49,11 +65,21 @@ interface CameraFilter {
                         if (sizes.height > 1) sizes.height else 1
                     )
             Canvas(bitmap).drawBitmap(filterBitmap, 0f, 0f, null)
+
         }
     }
 
-    object Fsr: CameraFilter {
-        override fun show(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
+    object Fsr : CameraFilter {
+        override fun showFilter(bitmap: Bitmap) {
+            if (OpenCVLoader.initLocal()) {
+                val mat = Mat()
+                Utils.bitmapToMat(bitmap, mat)
+                Imgproc.GaussianBlur(mat, mat, org.opencv.core.Size(25.0, 25.0), 20.0)
+                Utils.matToBitmap(mat, bitmap)
+            }
+        }
+
+        override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
                 (180 / bitmapZoom).toInt(),
                 (78 / bitmapZoom).toInt()

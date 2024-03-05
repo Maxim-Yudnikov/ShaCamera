@@ -27,6 +27,7 @@ class CameraViewModel(
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
             manageRatio.setCallback(this)
+            manageFilters.setCallback(this)
             this.manageCamera = manageCamera
         }
     }
@@ -36,6 +37,8 @@ class CameraViewModel(
     fun settings() {
         navigation.update(SettingsScreen)
     }
+
+    fun dlssIsOn() = manageFilters.dlssIsOn()
 
     fun cameraFilters(): List<CameraFilter> = manageFilters.allCameraFilters()
 

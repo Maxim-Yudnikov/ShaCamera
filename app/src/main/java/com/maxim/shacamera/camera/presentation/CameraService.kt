@@ -20,7 +20,8 @@ interface CameraService {
         textureViewHeight: Int,
         maxWidth: Int,
         maxHeight: Int,
-        aspectRatio: Size
+        aspectRatio: Size,
+        dlssIoOn: Boolean
     ): Size
 
     fun getCaptureSize(comparator: Comparator<Size>): Size
@@ -65,7 +66,8 @@ interface CameraService {
             textureViewHeight: Int,
             maxWidth: Int,
             maxHeight: Int,
-            aspectRatio: Size
+            aspectRatio: Size,
+            dlssIoOn: Boolean
         ): Size {
             val map = cameraManager.getCameraCharacteristics(cameraId)
                 .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return Size(0, 0)
@@ -87,9 +89,13 @@ interface CameraService {
             }
 
             //Log.d("MyLog", "ratio: $aspectRatio, big: ${bigEnough.toList()}, notBig: ${notBigEnough.toList()}")
-            val size = when {
+            val size = if (!dlssIoOn) when {
                 bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
                 notBigEnough.size > 0 -> Collections.max(notBigEnough, ComparableByArea())
+                else -> choices[0]
+            } else when {
+                notBigEnough.size > 0 -> Collections.min(notBigEnough, ComparableByArea())
+                bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
                 else -> choices[0]
             }
             //Log.d("MyLog", "size: $size")
