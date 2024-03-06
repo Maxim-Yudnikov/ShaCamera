@@ -14,6 +14,7 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -28,6 +29,7 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RelativeLayout
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -43,6 +45,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), ManageCamera,
     ShowSticker {
@@ -57,6 +62,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private var captureRequestBuilder: CaptureRequest.Builder? = null
     private var cameraCaptureSession: CameraCaptureSession? = null
+    private var mediaRecorder: MediaRecorder? = null
+    private var currentFile: File? = null
 
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
@@ -95,7 +102,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     @SuppressLint("ClickableViewAccessibility")
     private val zoomListener = View.OnTouchListener { _, event ->
         viewModel.handleZoom(
-            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString()),
+            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
             event!!,
             listOf(binding.textureView.width, binding.textureView.height).min(),
             binding.zoomValueTextView,
@@ -104,6 +111,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             handler!!
         )
     }
+
+    private var isRecording = false
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -114,8 +123,37 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             CameraService.Base(id, cameraManager!!, this)
         })
 
-        binding.photoButton.setOnClickListener {
-            viewModel.makePhoto()
+        var isRecordingOnDown = false
+        binding.photoButton.setOnTouchListener { v, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                isRecordingOnDown = isRecording
+                if (isRecording) {
+                    isRecording = false
+                    cameraCaptureSession!!.stopRepeating()
+                    cameraCaptureSession!!.abortCaptures()
+                    cameraCaptureSession!!.close()
+                    mediaRecorder!!.stop()
+                    mediaRecorder!!.release()
+                    setupMediaRecorder()
+                    viewModel.currentCamera().createCameraPreviewSession()
+                    Toast.makeText(requireContext(), "stop", Toast.LENGTH_SHORT).show()
+                }
+            }
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                if (!isRecordingOnDown && !isRecording)
+                    viewModel.makePhoto()
+            }
+            false
+        }
+
+        binding.photoButton.setOnLongClickListener {
+            if (isRecording) return@setOnLongClickListener false
+
+            isRecording = true
+            mediaRecorder!!.start()
+            Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
+
+            false
         }
 
         binding.changeCameraButton.setOnClickListener {
@@ -124,7 +162,10 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         binding.settingsButton.setOnClickListener {
             viewModel.settings()
+            viewModel.changeCamera()
         }
+
+        setupMediaRecorder()
 
         binding.stickersButton.setOnClickListener {
             viewModel.stickers()
@@ -245,8 +286,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         captureRequestBuilder!!.addTarget(surface)
+        captureRequestBuilder!!.addTarget(mediaRecorder!!.surface)
         cameraDevice.createCaptureSession(
-            listOf(surface),
+            listOf(surface, mediaRecorder!!.surface),
             object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(session: CameraCaptureSession) {
                     cameraCaptureSession = session
@@ -318,6 +360,48 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
             else -> false
         }
+    }
+
+    private fun setupMediaRecorder() {
+        mediaRecorder =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(requireContext()) else MediaRecorder()
+
+        val videoFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+        currentFile = File.createTempFile(
+            "SHACAMERA_VIDEO_${
+                SimpleDateFormat(
+                    "yyyyMMdd_HHmmss",
+                    Locale.getDefault()
+                ).format(Date())
+            }",
+            ".mp4", videoFolder
+        )
+        if (!videoFolder!!.exists()) {
+            videoFolder.mkdir()
+        }
+
+        mediaRecorder!!.apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+
+            setOutputFile(currentFile!!.absolutePath)
+            setVideoFrameRate(30)
+            val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped())
+            setVideoSize(
+                size.width,
+                size.height
+            )
+            setOrientationHint(90)
+            setVideoEncodingBitRate(1_000_000)
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+//            setAudioEncodingBitRate(16000)
+//            setAudioSamplingRate(16000)
+        }
+
+        mediaRecorder!!.prepare()
+
     }
 
     override fun showSticker(drawableId: Int) {

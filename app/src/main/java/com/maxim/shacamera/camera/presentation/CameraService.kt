@@ -28,6 +28,8 @@ interface CameraService {
 
     fun cameraId(): String
 
+    fun createCameraPreviewSession()
+
     class Base(
         private val cameraId: String,
         private val cameraManager: CameraManager,
@@ -109,5 +111,8 @@ interface CameraService {
         }
 
         override fun cameraId() = cameraId
+        override fun createCameraPreviewSession() {
+            manageCamera.createCameraPreviewSession(cameraDevice!!)
+        }
     }
 }
