@@ -7,13 +7,13 @@ import com.maxim.shacamera.core.presentation.Reload
 interface ManageFilters {
     fun setCallback(reload: Reload)
 
-    fun setRxt(value: Boolean)
-    fun setDlss(value: Boolean)
-    fun setFsr(value: Boolean)
+    fun setRxt(value: Int)
+    fun setDlss(value: Int)
+    fun setFsr(value: Int)
 
-    fun rtxIsOn(): Boolean
-    fun dlssIsOn(): Boolean
-    fun fsrIsOn(): Boolean
+    fun rtxMode(): Int
+    fun dlssMode(): Int
+    fun fsrMode(): Int
 
     fun allCameraFilters(): List<CameraFilter>
 
@@ -24,31 +24,31 @@ interface ManageFilters {
             callback = reload
         }
 
-        override fun setRxt(value: Boolean) {
+        override fun setRxt(value: Int) {
             simpleStorage.save(RTX_KEY, value)
         }
 
-        override fun setDlss(value: Boolean) {
+        override fun setDlss(value: Int) {
             simpleStorage.save(DLSS_KEY, value)
             callback?.reload()
         }
 
-        override fun setFsr(value: Boolean) {
+        override fun setFsr(value: Int) {
             simpleStorage.save(FSR_KEY, value)
         }
 
-        override fun rtxIsOn() = simpleStorage.read(RTX_KEY, false)
-        override fun dlssIsOn() = simpleStorage.read(DLSS_KEY, false)
-        override fun fsrIsOn() = simpleStorage.read(FSR_KEY, false)
+        override fun rtxMode() = simpleStorage.read(RTX_KEY, 0)
+        override fun dlssMode() = simpleStorage.read(DLSS_KEY, 0)
+        override fun fsrMode() = simpleStorage.read(FSR_KEY, 0)
 
         override fun allCameraFilters(): List<CameraFilter> {
             val list = mutableListOf<CameraFilter>()
-            if (fsrIsOn())
-                list.add(CameraFilter.Fsr)
-            if (rtxIsOn())
-                list.add(CameraFilter.Rtx)
-            if (dlssIsOn())
-                list.add(CameraFilter.Dlss)
+            if (fsrMode() != 0)
+                list.add(CameraFilter.Fsr(fsrMode() == 1))
+            if (rtxMode() != 0)
+                list.add(CameraFilter.Rtx(rtxMode() == 1))
+            if (dlssMode() != 0)
+                list.add(CameraFilter.Dlss(dlssMode() == 1))
             return list
         }
 

@@ -2,8 +2,10 @@ package com.maxim.shacamera.settings.presentation
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import androidx.core.view.children
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.maxim.shacamera.core.sl.ProvideViewModel
@@ -35,20 +37,83 @@ class SettingsBottomFragment : BottomSheetDialogFragment() {
             }
         }
 
-        binding.rtxSwitch.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setRtx(isChecked)
-        }
+        var byUser = false
+        val rtxListener = object :AdapterView.OnItemSelectedListener,View.OnTouchListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (byUser)
+                    viewModel.setRtx(position)
+            }
 
-        binding.dlssSwitch.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setDlss(isChecked)
-        }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                byUser = false
+            }
 
-        binding.fsrSwitch.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setFsr(isChecked)
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                byUser = true
+                return false
+            }
+
         }
+        binding.rtxSpinner.onItemSelectedListener = rtxListener
+        binding.rtxSpinner.setOnTouchListener(rtxListener)
+
+        val dlssListener = object :AdapterView.OnItemSelectedListener,View.OnTouchListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (byUser)
+                    viewModel.setDlss(position)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                byUser = false
+            }
+
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                byUser = true
+                return false
+            }
+
+        }
+        binding.dlssSpinner.onItemSelectedListener = dlssListener
+        binding.dlssSpinner.setOnTouchListener(dlssListener)
+
+        val fsrListener = object :AdapterView.OnItemSelectedListener,View.OnTouchListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (byUser)
+                    viewModel.setFsr(position)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                byUser = false
+            }
+
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                byUser = true
+                return false
+            }
+
+        }
+        binding.fsrSpinner.onItemSelectedListener = fsrListener
+        binding.fsrSpinner.setOnTouchListener(fsrListener)
+
+
 
         viewModel.observe(this) {
-            it.show(binding.radioGroup, binding.rtxSwitch, binding.dlssSwitch, binding.fsrSwitch)
+            it.show(binding.radioGroup, binding.rtxSpinner, binding.dlssSpinner, binding.fsrSpinner)
         }
 
         viewModel.init()

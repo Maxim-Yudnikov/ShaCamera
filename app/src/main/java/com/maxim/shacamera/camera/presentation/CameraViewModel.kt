@@ -47,7 +47,7 @@ class CameraViewModel(
         navigation.update(StickersScreen)
     }
 
-    fun dlssIsOn() = manageFilters.dlssIsOn()
+    fun dlssMode() = manageFilters.dlssMode()
 
     fun cameraFilters(): List<CameraFilter> = manageFilters.allCameraFilters()
 

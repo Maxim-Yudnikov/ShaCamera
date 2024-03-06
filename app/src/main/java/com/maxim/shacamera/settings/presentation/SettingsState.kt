@@ -2,32 +2,32 @@ package com.maxim.shacamera.settings.presentation
 
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import androidx.appcompat.widget.SwitchCompat
+import android.widget.Spinner
 
 interface SettingsState {
     fun show(
         radioGroup: RadioGroup,
-        rtxSwitch: SwitchCompat,
-        dlssSwitchCompat: SwitchCompat,
-        fsrSwitchCompat: SwitchCompat,
+        rtxSpinner: Spinner,
+        dlssSpinner: Spinner,
+        fsrSpinner: Spinner,
     )
 
     class Base(
         private val ratioPosition: Int,
-        private val rtxIsOn: Boolean,
-        private val dlssIsOn: Boolean,
-        private val fsrIsOn: Boolean
+        private val rtxMode: Int,
+        private val dlssMode: Int,
+        private val fsrMode: Int
     ) : SettingsState {
         override fun show(
             radioGroup: RadioGroup,
-            rtxSwitch: SwitchCompat,
-            dlssSwitchCompat: SwitchCompat,
-            fsrSwitchCompat: SwitchCompat
+            rtxSpinner: Spinner,
+            dlssSpinner: Spinner,
+            fsrSpinner: Spinner
         ) {
             (radioGroup.getChildAt(ratioPosition) as RadioButton).isChecked = true
-            rtxSwitch.isChecked = rtxIsOn
-            dlssSwitchCompat.isChecked = dlssIsOn
-            fsrSwitchCompat.isChecked = fsrIsOn
+            rtxSpinner.setSelection(rtxMode)
+            dlssSpinner.setSelection(dlssMode)
+            fsrSpinner.setSelection(fsrMode)
         }
     }
 }

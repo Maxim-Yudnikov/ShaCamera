@@ -17,8 +17,9 @@ interface CameraFilter {
     fun showFilter(bitmap: Bitmap)
     fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float)
 
-    object Rtx : CameraFilter {
+    data class Rtx(private val isWeak: Boolean) : CameraFilter {
         override fun showFilter(bitmap: Bitmap) {
+            if (isWeak) return
             if (OpenCVLoader.initLocal()) {
                 val mat = Mat()
                 Utils.bitmapToMat(bitmap, mat)
@@ -49,7 +50,7 @@ interface CameraFilter {
         }
     }
 
-    object Dlss : CameraFilter {
+    data class Dlss(private val isWeak: Boolean) : CameraFilter {
         override fun showFilter(bitmap: Bitmap) = Unit
 
 
@@ -69,8 +70,9 @@ interface CameraFilter {
         }
     }
 
-    object Fsr : CameraFilter {
+    data class Fsr(private val isWeak: Boolean) : CameraFilter {
         override fun showFilter(bitmap: Bitmap) {
+            if (isWeak) return
             if (OpenCVLoader.initLocal()) {
                 val mat = Mat()
                 Utils.bitmapToMat(bitmap, mat)

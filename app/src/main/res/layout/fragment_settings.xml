@@ -29,28 +29,67 @@
 
     </RadioGroup>
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/rtxSwitch"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="20dp"
-        android:text="RTX"
-        android:textSize="18sp" />
+        android:layout_marginVertical="10dp">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/dlssSwitch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="20dp"
-        android:text="DLSS 3.5"
-        android:textSize="18sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="RTX"
+            android:textSize="18sp" />
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/fsrSwitch"
+        <Spinner
+            android:id="@+id/rtxSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/filter_mode" />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="20dp"
-        android:text="FSR 3.0"
-        android:textSize="18sp" />
+        android:layout_marginVertical="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="DLSS 3.5"
+            android:textSize="18sp" />
+
+        <Spinner
+            android:id="@+id/dlssSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/filter_mode" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:layout_marginVertical="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="FSR 3.0"
+            android:textSize="18sp" />
+
+        <Spinner
+            android:id="@+id/fsrSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/filter_mode" />
+
+    </LinearLayout>
 
 </LinearLayout>

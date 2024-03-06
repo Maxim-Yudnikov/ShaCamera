@@ -290,7 +290,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 displaySize.y,
                 displaySize.x,
                 largest,
-                viewModel.dlssIsOn()
+                viewModel.dlssMode() == 2
             ) else
             camera.getOptimalPreviewSize(
                 binding.root.width,
@@ -298,7 +298,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 displaySize.x,
                 displaySize.y,
                 largest,
-                viewModel.dlssIsOn()
+                viewModel.dlssMode() == 2
             )
     }
 
