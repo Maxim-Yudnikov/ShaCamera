@@ -62,6 +62,12 @@ class CameraViewModel(
 
     fun bitmapZoom() = repository.bitmapZoom()
 
+    fun setZoom(
+        captureRequestBuilder: CaptureRequest.Builder,
+    ) {
+        repository.setZoom(captureRequestBuilder)
+    }
+
     fun handleZoom(
         cameraCharacteristics: CameraCharacteristics,
         event: MotionEvent,

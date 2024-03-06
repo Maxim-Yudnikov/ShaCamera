@@ -290,6 +290,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         captureRequestBuilder!!.addTarget(surface)
         captureRequestBuilder!!.addTarget(mediaRecorder!!.surface)
+        viewModel.setZoom(captureRequestBuilder!!)
         cameraDevice.createCaptureSession(
             listOf(surface, mediaRecorder!!.surface),
             object : CameraCaptureSession.StateCallback() {
