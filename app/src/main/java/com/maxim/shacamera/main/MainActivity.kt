@@ -46,6 +46,13 @@ class MainActivity : AppCompatActivity(), ProvideViewModel {
             ) {
                 permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
+        if (ContextCompat.checkSelfPermission(
+                applicationContext,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionList.add(Manifest.permission.RECORD_AUDIO)
+        }
 
         if (permissionList.isNotEmpty()) {
             requestPermissions(
