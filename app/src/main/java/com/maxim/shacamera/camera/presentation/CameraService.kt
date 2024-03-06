@@ -7,6 +7,7 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.os.Handler
+import android.util.Log
 import android.util.Size
 import com.maxim.shacamera.camera.data.ComparableByArea
 import java.util.Collections
@@ -21,7 +22,7 @@ interface CameraService {
         maxWidth: Int,
         maxHeight: Int,
         aspectRatio: Size,
-        dlssIoOn: Boolean
+        dlssIsOn: Boolean
     ): Size
 
     fun getCaptureSize(comparator: Comparator<Size>): Size
@@ -69,7 +70,7 @@ interface CameraService {
             maxWidth: Int,
             maxHeight: Int,
             aspectRatio: Size,
-            dlssIoOn: Boolean
+            dlssIsOn: Boolean
         ): Size {
             val map = cameraManager.getCameraCharacteristics(cameraId)
                 .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return Size(0, 0)
@@ -79,10 +80,7 @@ interface CameraService {
             val notBigEnough = ArrayList<Size>()
 
             for (option in choices) {
-                //todo
-                if (/*option.width <= maxWidth && option.height <= maxHeight &&*/ option.height
-                    == option.width * aspectRatio.height / aspectRatio.width
-                ) {
+                if (option.height == option.width * aspectRatio.height / aspectRatio.width) {
                     if (option.width >= textureViewWidth && option.height >= textureViewHeight)
                         bigEnough.add(option)
                     else
@@ -90,17 +88,17 @@ interface CameraService {
                 }
             }
 
-            //Log.d("MyLog", "ratio: $aspectRatio, big: ${bigEnough.toList()}, notBig: ${notBigEnough.toList()}")
-            val size = if (!dlssIoOn) when {
-                bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
-                notBigEnough.size > 0 -> Collections.max(notBigEnough, ComparableByArea())
-                else -> choices[0]
-            } else when {
+            Log.d("MyLog", "ratio: $aspectRatio, big: ${bigEnough.toList()}, notBig: ${notBigEnough.toList()}")
+            val size = if (dlssIsOn) when {
                 notBigEnough.size > 0 -> Collections.min(notBigEnough, ComparableByArea())
                 bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
                 else -> choices[0]
+            } else when {
+                bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
+                notBigEnough.size > 0 -> Collections.max(notBigEnough, ComparableByArea())
+                else -> choices[0]
             }
-            //Log.d("MyLog", "size: $size")
+            Log.d("MyLog", "size: $size")
             return size
         }
 

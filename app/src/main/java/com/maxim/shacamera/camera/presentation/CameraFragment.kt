@@ -21,6 +21,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -136,7 +137,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                     mediaRecorder!!.release()
                     setupMediaRecorder()
                     viewModel.currentCamera().createCameraPreviewSession()
-                    Toast.makeText(requireContext(), "stop", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show()
+                    binding.photoButton.setBackgroundResource(R.drawable.take_photo_24)
                 }
             }
             if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -152,6 +154,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             isRecording = true
             mediaRecorder!!.start()
             Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
+            binding.photoButton.setBackgroundResource(R.drawable.recording)
 
             false
         }
@@ -162,10 +165,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         binding.settingsButton.setOnClickListener {
             viewModel.settings()
-            viewModel.changeCamera()
         }
-
-        setupMediaRecorder()
 
         binding.stickersButton.setOnClickListener {
             viewModel.stickers()
@@ -174,6 +174,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         binding.imageView.setOnTouchListener(zoomListener)
 
         viewModel.init(savedInstanceState == null, this)
+
+        setupMediaRecorder()
     }
 
     override fun onResume() {
@@ -325,18 +327,20 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val displaySize = Point()
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 
+        Log.d("MyLog", "root w: ${binding.textureView.width}, h: ${binding.textureView.height}")
+
         return if (isDimensionSwapped)
             camera.getOptimalPreviewSize(
-                binding.root.height,
-                binding.root.width,
+                binding.textureView.height,
+                binding.textureView.width,
                 displaySize.y,
                 displaySize.x,
                 largest,
                 viewModel.dlssMode() == 2
             ) else
             camera.getOptimalPreviewSize(
-                binding.root.width,
-                binding.root.height,
+                binding.textureView.width,
+                binding.textureView.height,
                 displaySize.x,
                 displaySize.y,
                 largest,
@@ -387,23 +391,23 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
             setOutputFile(currentFile!!.absolutePath)
             setVideoFrameRate(30)
-            val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped())
             setVideoSize(
-                size.width,
-                size.height
+                1280,
+                720
             )
             setOrientationHint(90)
-            setVideoEncodingBitRate(1_000_000)
+            setVideoEncodingBitRate(10_000_000)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-//            setAudioEncodingBitRate(16000)
-//            setAudioSamplingRate(16000)
+            setAudioEncodingBitRate(200_000)
+            setAudioSamplingRate(48_000_000)
         }
 
         mediaRecorder!!.prepare()
 
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun showSticker(drawableId: Int) {
         val imageView = RotateZoomImageView(requireContext()).apply {
             layoutParams = RelativeLayout.LayoutParams(400, 400)
