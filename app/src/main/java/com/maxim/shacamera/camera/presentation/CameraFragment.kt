@@ -20,6 +20,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
@@ -320,6 +321,10 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 
         mode.setAspectRatio(binding.textureView, displaySize, previewSize, isDimensionSwapped)
+        Handler(Looper.getMainLooper()).post {
+            binding.imageView.layoutParams = binding.textureView.layoutParams
+            binding.stickersLayout.layoutParams = binding.textureView.layoutParams
+        }
     }
 
     private fun setupPreviewSize(camera: CameraService, isDimensionSwapped: Boolean): Size {
