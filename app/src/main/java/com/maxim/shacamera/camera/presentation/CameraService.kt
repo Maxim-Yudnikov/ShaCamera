@@ -53,12 +53,10 @@ interface CameraService {
 
         @SuppressLint("MissingPermission")
         override fun openCamera(handler: Handler) {
-            Log.d("MyLog", "openCamera")
             cameraManager.openCamera(cameraId, cameraCallback, handler)
         }
 
         override fun closeCamera() {
-            Log.d("MyLog", "closeCamera")
             cameraDevice?.let {
                 it.close()
                 cameraDevice = null

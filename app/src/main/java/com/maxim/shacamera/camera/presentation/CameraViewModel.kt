@@ -33,11 +33,11 @@ class CameraViewModel(
 
     fun init(isFirstRun: Boolean, manageCamera: ManageCamera) {
         if (isFirstRun) {
-            manageRatio.setCallback(this)
-            manageFilters.setCallback(this)
-            stickersSharedCommunication.setCallback(this)
             communication.update(CameraState.Base(1f))
         }
+        manageRatio.setCallback(this)
+        manageFilters.setCallback(this)
+        stickersSharedCommunication.setCallback(this)
         this.manageCamera = manageCamera
     }
 

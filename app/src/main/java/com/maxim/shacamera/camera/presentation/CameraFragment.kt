@@ -21,6 +21,9 @@ import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
@@ -34,6 +37,7 @@ import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
 import androidx.core.graphics.drawable.toBitmap
 import com.easystudio.rotateimageview.RotateZoomImageView
 import com.maxim.shacamera.R
@@ -47,7 +51,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
-import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -70,6 +73,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+            val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped())
+            binding.textureView.surfaceTexture!!.setDefaultBufferSize(size.width, size.height)
             viewModel.openCamera()
         }
 
@@ -104,14 +109,17 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     //todo
     @SuppressLint("ClickableViewAccessibility")
     private val zoomListener = View.OnTouchListener { _, event ->
-        viewModel.handleZoom(
-            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
-            event!!,
-            listOf(binding.textureView.width, binding.textureView.height).min(),
-            captureRequestBuilder!!,
-            cameraCaptureSession!!,
-            handler!!
-        )
+        if (!viewModel.currentCamera().isOpen())
+            false
+        else
+            viewModel.handleZoom(
+                cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
+                event!!,
+                listOf(binding.textureView.width, binding.textureView.height).min(),
+                captureRequestBuilder!!,
+                cameraCaptureSession!!,
+                handler!!
+            )
     }
 
     private var isRecording = false
@@ -156,6 +164,12 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             mediaRecorder!!.start()
             Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
             binding.photoButton.setBackgroundResource(R.drawable.recording)
+            val vibrator = requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+            else
+                vibrator.vibrate(100)
+
 
             false
         }
@@ -188,11 +202,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         viewModel.onResume()
 
         if (!binding.textureView.isAvailable) {
-            Log.d("MyLog", "onResume1")
             binding.textureView.surfaceTextureListener = textureListener
-        }
-        else {
-            Log.d("MyLog", "onResume2")
+        } else {
             viewModel.openCamera()
         }
     }
@@ -230,20 +241,13 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             )
             values.put(MediaStore.Images.Media.IS_PENDING, true)
             val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            if (uri != null) {
-                val outputStream = contentResolver.openOutputStream(uri)
-                if (outputStream != null) {
-                    mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                    outputStream.close()
-                }
-                values.put(MediaStore.Images.Media.IS_PENDING, false)
-                contentResolver.update(uri, values, null, null)
-                GlobalScope.launch(Dispatchers.Main) {
-                    binding.flash.visibility = View.VISIBLE
-                    delay(100)
-                    binding.flash.visibility = View.GONE
-                }
+            val outputStream = contentResolver.openOutputStream(uri!!)
+            if (outputStream != null) {
+                mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                outputStream.close()
             }
+            values.put(MediaStore.Images.Media.IS_PENDING, false)
+            contentResolver.update(uri, values, null, null)
         } else {
             val imageFileFolder = File(
                 Environment.getExternalStorageDirectory().toString() + '/' + getString(
@@ -253,18 +257,23 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             if (!imageFileFolder.exists()) {
                 imageFileFolder.mkdir()
             }
-            val imageName = "${System.currentTimeMillis()}.jpg"
+            val imageName = "${
+                SimpleDateFormat(
+                    "yyyyMMdd_HHmmss",
+                    Locale.getDefault()
+                ).format(Date())
+            }.jpg"
             val imageFile = File(imageFileFolder, imageName)
             val outputStream = FileOutputStream(imageFile)
             mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             outputStream.close()
             values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            GlobalScope.launch(Dispatchers.Main) {
-                binding.flash.visibility = View.VISIBLE
-                delay(100)
-                binding.flash.visibility = View.GONE
-            }
+        }
+        GlobalScope.launch(Dispatchers.Main) {
+            binding.flash.visibility = View.VISIBLE
+            delay(100)
+            binding.flash.visibility = View.GONE
         }
     }
 
@@ -287,7 +296,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         val isDimensionSwapped = isDimensionSwapped()
         val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped)
-        texture!!.setDefaultBufferSize(size.width, size.height)
         updateAspectRatio(
             viewModel.screenSizeMode(),
             size,
@@ -439,7 +447,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 }
 
-interface ManageCamera: Serializable {
+interface ManageCamera {
     fun openCamera(camera: CameraService)
     fun makePhoto()
     fun startBackgroundThread()
