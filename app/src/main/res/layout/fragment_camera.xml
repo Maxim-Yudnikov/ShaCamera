@@ -8,7 +8,7 @@
     tools:context=".main.MainActivity">
 
     <com.maxim.shacamera.camera.presentation.AutoFitTextureView
-        android:id="@+id/textureView"
+        android:id="@+id/cameraTextureView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 

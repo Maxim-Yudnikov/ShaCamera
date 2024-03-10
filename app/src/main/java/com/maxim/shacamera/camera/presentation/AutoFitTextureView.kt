@@ -18,6 +18,8 @@ class AutoFitTextureView: TextureView {
     private var ratioWidth = 0
     private var ratioHeight = 0
 
+
+
     fun setAspectRatio(width: Int, height: Int) {
         Handler(Looper.getMainLooper()).post {
             if (width < 0 || height < 0) {

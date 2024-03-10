@@ -55,6 +55,14 @@ class CameraViewModel(
 
     fun cameraFilters(): List<CameraFilter> = manageFilters.allCameraFilters()
 
+    fun resetBitmapZoom(
+        cameraCharacteristics: CameraCharacteristics,
+        captureRequestBuilder: CaptureRequest.Builder
+    ) {
+        val zoom = repository.setCameraZoomToMax(cameraCharacteristics, captureRequestBuilder)
+        communication.update(CameraState.Base(zoom))
+    }
+
     fun currentCamera() = myCameras[currentCameraIndex]
     fun currentCameraId() = myCameras[currentCameraIndex].cameraId()
 
@@ -66,7 +74,7 @@ class CameraViewModel(
 
     fun bitmapZoom() = repository.bitmapZoom()
 
-    fun setZoom(captureRequestBuilder: CaptureRequest.Builder, ) {
+    fun setZoom(captureRequestBuilder: CaptureRequest.Builder) {
         val zoom = repository.setZoom(captureRequestBuilder)
         communication.update(CameraState.Base(zoom))
     }
@@ -77,7 +85,8 @@ class CameraViewModel(
         screenMinSize: Int,
         captureRequestBuilder: CaptureRequest.Builder,
         cameraCaptureSession: CameraCaptureSession,
-        handler: Handler
+        handler: Handler,
+        isRecording: Boolean
     ): Boolean {
         val value = repository.handleZoom(
             cameraCharacteristics,
@@ -85,7 +94,8 @@ class CameraViewModel(
             screenMinSize,
             captureRequestBuilder,
             cameraCaptureSession,
-            handler
+            handler,
+            isRecording
         )
         communication.update(CameraState.Base(value.first))
         return value.second
@@ -93,7 +103,9 @@ class CameraViewModel(
 
     fun changeCamera() {
         myCameras[currentCameraIndex].closeCamera()
-        currentCameraIndex = if (currentCameraIndex == 0) 1 else 0
+        currentCameraIndex++
+        if (currentCameraIndex == myCameras.size)
+            currentCameraIndex = 0
         manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 

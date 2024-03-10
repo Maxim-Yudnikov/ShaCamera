@@ -18,11 +18,16 @@ interface CameraRepository {
         screenMinSize: Int,
         captureRequestBuilder: Builder,
         cameraCaptureSession: CameraCaptureSession,
-        handler: Handler
+        handler: Handler,
+        isRecording: Boolean
     ): Pair<Float, Boolean>
 
     fun bitmapZoom(): Float
     fun setZoom(captureRequestBuilder: Builder): Float
+    fun setCameraZoomToMax(
+        cameraCharacteristics: CameraCharacteristics,
+        captureRequestBuilder: Builder
+    ): Float
 
     class Base : CameraRepository {
         private var fingerSpacing = 0f
@@ -36,7 +41,8 @@ interface CameraRepository {
             screenMinSize: Int,
             captureRequestBuilder: Builder,
             cameraCaptureSession: CameraCaptureSession,
-            handler: Handler
+            handler: Handler,
+            isRecording: Boolean
         ): Pair<Float, Boolean> {
             val rect =
                 cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
@@ -52,7 +58,7 @@ interface CameraRepository {
                     if (currentFingerSpacing > fingerSpacing) {
                         if ((maxZoomLevel - zoomLevel) <= delta) {
                             delta = maxZoomLevel - zoomLevel
-                            if ((screenMinSize / (bitmapZoom + bitmapZoom / 25)).toInt() != 0)
+                            if ((screenMinSize / (bitmapZoom + bitmapZoom / 25)).toInt() != 0 && !isRecording)
                                 bitmapZoom += bitmapZoom / 25 //Control this value to control the bitmap zooming sensibility
                         }
                         zoomLevel += delta
@@ -96,6 +102,15 @@ interface CameraRepository {
         override fun setZoom(captureRequestBuilder: Builder): Float {
             captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom)
             return zoomLevel * bitmapZoom
+        }
+
+        override fun setCameraZoomToMax(
+            cameraCharacteristics: CameraCharacteristics,
+            captureRequestBuilder: Builder
+        ): Float {
+            bitmapZoom = 1f
+            captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom)
+            return zoomLevel
         }
 
         private fun getFingerSpacing(event: MotionEvent): Float {

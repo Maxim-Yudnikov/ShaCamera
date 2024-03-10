@@ -25,7 +25,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.MediaStore
-import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -37,8 +36,7 @@ import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.getSystemService
-import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.children
 import com.easystudio.rotateimageview.RotateZoomImageView
 import com.maxim.shacamera.R
 import com.maxim.shacamera.camera.data.ScreenSizeMode
@@ -74,14 +72,14 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
             val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped())
-            binding.textureView.surfaceTexture!!.setDefaultBufferSize(size.width, size.height)
+            binding.cameraTextureView.surfaceTexture!!.setDefaultBufferSize(size.width, size.height)
             viewModel.openCamera()
         }
 
         override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-            val bitmap = binding.textureView.bitmap!!
-            val width = (binding.textureView.width / viewModel.bitmapZoom()).toInt()
-            val height = (binding.textureView.height / viewModel.bitmapZoom()).toInt()
+            val bitmap = binding.cameraTextureView.bitmap!!
+            val width = (binding.cameraTextureView.width / viewModel.bitmapZoom()).toInt()
+            val height = (binding.cameraTextureView.height / viewModel.bitmapZoom()).toInt()
             val scaledBitmap = Bitmap.createBitmap(
                 bitmap,
                 bitmap.width / 2 - width / 2,
@@ -90,11 +88,13 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 height
             )
 
-            viewModel.cameraFilters().forEach {
-                it.showFilter(scaledBitmap)
-            }
-            viewModel.cameraFilters().forEach {
-                it.showImage(scaledBitmap, requireContext(), viewModel.bitmapZoom())
+            if (!isRecording) {
+                viewModel.cameraFilters().forEach {
+                    it.showFilter(scaledBitmap)
+                }
+                viewModel.cameraFilters().forEach {
+                    it.showImage(scaledBitmap, requireContext(), viewModel.bitmapZoom())
+                }
             }
 
             binding.imageView.setImageBitmap(scaledBitmap)
@@ -115,10 +115,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             viewModel.handleZoom(
                 cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
                 event!!,
-                listOf(binding.textureView.width, binding.textureView.height).min(),
+                listOf(binding.cameraTextureView.width, binding.cameraTextureView.height).min(),
                 captureRequestBuilder!!,
                 cameraCaptureSession!!,
-                handler!!
+                handler!!,
+                isRecording
             )
     }
 
@@ -148,6 +149,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                     viewModel.currentCamera().createCameraPreviewSession()
                     Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show()
                     binding.photoButton.setBackgroundResource(R.drawable.take_photo_24)
+                    binding.stickersLayout.children.forEach {
+                        it.visibility = View.VISIBLE
+                    }
                 }
             }
             if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -160,13 +164,32 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         binding.photoButton.setOnLongClickListener {
             if (isRecording) return@setOnLongClickListener false
 
+            binding.stickersLayout.children.forEach {
+                it.visibility = View.GONE
+            }
+
+            viewModel.resetBitmapZoom(
+                cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
+                captureRequestBuilder!!
+            )
             isRecording = true
             mediaRecorder!!.start()
             Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
             binding.photoButton.setBackgroundResource(R.drawable.recording)
-            val vibrator = requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            @Suppress("DEPRECATION") val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager =
+                    requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else
+                requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                vibrator.vibrate(
+                    VibrationEffect.createOneShot(
+                        100,
+                        VibrationEffect.DEFAULT_AMPLITUDE
+                    )
+                )
             else
                 vibrator.vibrate(100)
 
@@ -183,7 +206,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         binding.stickersButton.setOnClickListener {
-            viewModel.stickers()
+            if (!isRecording)
+                viewModel.stickers()
         }
 
         binding.imageView.setOnTouchListener(zoomListener)
@@ -201,8 +225,8 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         super.onResume()
         viewModel.onResume()
 
-        if (!binding.textureView.isAvailable) {
-            binding.textureView.surfaceTextureListener = textureListener
+        if (!binding.cameraTextureView.isAvailable) {
+            binding.cameraTextureView.surfaceTextureListener = textureListener
         } else {
             viewModel.openCamera()
         }
@@ -224,7 +248,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun makePhoto() {
-        val mainBitmap = binding.imageView.drawable.toBitmap()
+        val mainBitmap = binding.cameraTextureView.bitmap!!
         binding.stickersLayout.draw(Canvas(mainBitmap))
 
         val values = ContentValues().apply {
@@ -291,7 +315,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun createCameraPreviewSession(cameraDevice: CameraDevice) {
-        val texture = binding.textureView.surfaceTexture
+        val texture = binding.cameraTextureView.surfaceTexture
         val surface = Surface(texture)
 
         val isDimensionSwapped = isDimensionSwapped()
@@ -336,10 +360,10 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val displaySize = Point()
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 
-        mode.setAspectRatio(binding.textureView, displaySize, previewSize, isDimensionSwapped)
+        mode.setAspectRatio(binding.cameraTextureView, displaySize, previewSize, isDimensionSwapped)
         Handler(Looper.getMainLooper()).post {
-            binding.imageView.layoutParams = binding.textureView.layoutParams
-            binding.stickersLayout.layoutParams = binding.textureView.layoutParams
+            binding.imageView.layoutParams = binding.cameraTextureView.layoutParams
+            binding.stickersLayout.layoutParams = binding.cameraTextureView.layoutParams
         }
     }
 
@@ -350,16 +374,16 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         return if (isDimensionSwapped)
             camera.getOptimalPreviewSize(
-                binding.textureView.height,
-                binding.textureView.width,
+                binding.cameraTextureView.height,
+                binding.cameraTextureView.width,
                 displaySize.y,
                 displaySize.x,
                 largest,
                 viewModel.dlssMode() == 2
             ) else
             camera.getOptimalPreviewSize(
-                binding.textureView.width,
-                binding.textureView.height,
+                binding.cameraTextureView.width,
+                binding.cameraTextureView.height,
                 displaySize.x,
                 displaySize.y,
                 largest,
@@ -370,7 +394,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     private fun isDimensionSwapped(): Boolean {
         val displayRotation = ContextCompat.getDisplayOrDefault(requireActivity()).rotation
         val sensorOrientation =
-            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId().toString())
+            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId())
                 .get(CameraCharacteristics.SENSOR_ORIENTATION)
         return when (displayRotation) {
             Surface.ROTATION_0, Surface.ROTATION_180 -> {
@@ -407,7 +431,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-
             setOutputFile(currentFile!!.absolutePath)
             setVideoFrameRate(30)
             setVideoSize(
@@ -423,7 +446,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         mediaRecorder!!.prepare()
-
     }
 
     @SuppressLint("ClickableViewAccessibility")

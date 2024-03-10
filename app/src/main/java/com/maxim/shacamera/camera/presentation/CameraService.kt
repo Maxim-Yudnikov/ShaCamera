@@ -7,7 +7,6 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.os.Handler
-import android.util.Log
 import android.util.Size
 import com.maxim.shacamera.camera.data.ComparableByArea
 import java.util.Collections

@@ -53,7 +53,6 @@ interface CameraFilter {
     data class Dlss(private val isWeak: Boolean) : CameraFilter {
         override fun showFilter(bitmap: Bitmap) = Unit
 
-
         override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
             val sizes = Size(
                 (420 / bitmapZoom).toInt(),
