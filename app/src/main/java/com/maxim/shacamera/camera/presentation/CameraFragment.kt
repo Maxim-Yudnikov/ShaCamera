@@ -36,6 +36,7 @@ import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.children
 import com.easystudio.rotateimageview.RotateZoomImageView
 import com.maxim.shacamera.R
@@ -43,8 +44,9 @@ import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
 import com.maxim.shacamera.stickers.data.ShowSticker
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -100,8 +102,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             binding.imageView.setImageBitmap(scaledBitmap)
         }
 
-        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) =
-            Unit
+        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+
+        }
 
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture) = false
     }
@@ -139,19 +142,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 isRecordingOnDown = isRecording
                 if (isRecording) {
-                    isRecording = false
-                    cameraCaptureSession!!.stopRepeating()
-                    cameraCaptureSession!!.abortCaptures()
-                    cameraCaptureSession!!.close()
-                    mediaRecorder!!.stop()
-                    mediaRecorder!!.release()
-                    setupMediaRecorder()
-                    viewModel.currentCamera().createCameraPreviewSession()
-                    Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show()
-                    binding.photoButton.setBackgroundResource(R.drawable.take_photo_24)
-                    binding.stickersLayout.children.forEach {
-                        it.visibility = View.VISIBLE
-                    }
+                    stopRecording()
                 }
             }
             if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -164,45 +155,19 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         binding.photoButton.setOnLongClickListener {
             if (isRecording) return@setOnLongClickListener false
 
-            binding.stickersLayout.children.forEach {
-                it.visibility = View.GONE
-            }
-
-            viewModel.resetBitmapZoom(
-                cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
-                captureRequestBuilder!!
-            )
-            isRecording = true
-            mediaRecorder!!.start()
-            Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
-            binding.photoButton.setBackgroundResource(R.drawable.recording)
-            @Suppress("DEPRECATION") val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager =
-                    requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vibratorManager.defaultVibrator
-            } else
-                requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                vibrator.vibrate(
-                    VibrationEffect.createOneShot(
-                        100,
-                        VibrationEffect.DEFAULT_AMPLITUDE
-                    )
-                )
-            else
-                vibrator.vibrate(100)
-
+            startRecording()
 
             false
         }
 
         binding.changeCameraButton.setOnClickListener {
-            viewModel.changeCamera()
+            if (!isRecording)
+                viewModel.changeCamera()
         }
 
         binding.settingsButton.setOnClickListener {
-            viewModel.settings()
+            if (!isRecording)
+                viewModel.settings()
         }
 
         binding.stickersButton.setOnClickListener {
@@ -233,6 +198,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun onPause() {
+        if (isRecording)
+            stopRecording()
+
         super.onPause()
         viewModel.onPause()
     }
@@ -247,8 +215,56 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
     }
 
+    override fun startRecording() {
+        isRecording = true
+        binding.stickersLayout.children.forEach {
+            it.visibility = View.GONE
+        }
+
+        viewModel.resetBitmapZoom(
+            cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
+            captureRequestBuilder!!
+        )
+        mediaRecorder!!.start()
+        Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
+        binding.photoButton.setBackgroundResource(R.drawable.recording)
+        @Suppress("DEPRECATION") val vibrator =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager =
+                    requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else
+                requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(
+                    100,
+                    VibrationEffect.DEFAULT_AMPLITUDE
+                )
+            )
+        else
+            vibrator.vibrate(100)
+    }
+
+    override fun stopRecording() {
+        isRecording = false
+        cameraCaptureSession!!.stopRepeating()
+        cameraCaptureSession!!.abortCaptures()
+        cameraCaptureSession!!.close()
+        mediaRecorder!!.stop()
+        mediaRecorder!!.release()
+        setupMediaRecorder()
+        viewModel.currentCamera().createCameraPreviewSession()
+        Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show()
+        binding.photoButton.setBackgroundResource(R.drawable.take_photo_24)
+        binding.stickersLayout.children.forEach {
+            it.visibility = View.VISIBLE
+        }
+    }
+
     override fun makePhoto() {
-        val mainBitmap = binding.cameraTextureView.bitmap!!
+        val mainBitmap = binding.imageView.drawable.toBitmap()
         binding.stickersLayout.draw(Canvas(mainBitmap))
 
         val values = ContentValues().apply {
@@ -281,7 +297,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             if (!imageFileFolder.exists()) {
                 imageFileFolder.mkdir()
             }
-            val imageName = "${
+            val imageName = "SHACAMERA_IMG_${
                 SimpleDateFormat(
                     "yyyyMMdd_HHmmss",
                     Locale.getDefault()
@@ -294,7 +310,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
         }
-        GlobalScope.launch(Dispatchers.Main) {
+        CoroutineScope(Dispatchers.Main + Job()).launch(Dispatchers.Main) {
             binding.flash.visibility = View.VISIBLE
             delay(100)
             binding.flash.visibility = View.GONE
@@ -320,6 +336,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         val isDimensionSwapped = isDimensionSwapped()
         val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped)
+        texture!!.setDefaultBufferSize(size.width, size.height)
         updateAspectRatio(
             viewModel.screenSizeMode(),
             size,
@@ -409,7 +426,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
     }
 
-    private fun setupMediaRecorder() {
+    override fun setupMediaRecorder() {
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(requireContext()) else MediaRecorder()
 
@@ -437,7 +454,12 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
                 1280,
                 720
             )
-            setOrientationHint(90)
+            val isFrontCamera =
+                cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId())
+                    .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT
+            setOrientationHint(
+                if (isFrontCamera) 270 else 90
+            )
             setVideoEncodingBitRate(10_000_000)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
@@ -471,6 +493,9 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
 interface ManageCamera {
     fun openCamera(camera: CameraService)
+    fun startRecording()
+    fun setupMediaRecorder()
+    fun stopRecording()
     fun makePhoto()
     fun startBackgroundThread()
     fun stopBackgroundThread()

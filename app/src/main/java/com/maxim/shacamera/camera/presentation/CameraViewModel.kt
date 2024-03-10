@@ -106,6 +106,7 @@ class CameraViewModel(
         currentCameraIndex++
         if (currentCameraIndex == myCameras.size)
             currentCameraIndex = 0
+        manageCamera?.setupMediaRecorder()
         manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 
