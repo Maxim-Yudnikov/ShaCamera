@@ -25,6 +25,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -70,7 +71,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     private var captureRequestBuilder: CaptureRequest.Builder? = null
     private var cameraCaptureSession: CameraCaptureSession? = null
     private var mediaRecorder: MediaRecorder? = null
-    private var currentFile: File? = null
 
     private val textureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
@@ -183,13 +183,12 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         viewModel.init(savedInstanceState == null, this)
-
-        setupMediaRecorder()
     }
 
     override fun onResume() {
         if (!(requireActivity() as CheckPermission).checkPermissions()) {
-            Toast.makeText(requireContext(), "Please grant all permissions", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), "Please grant all permissions", Toast.LENGTH_LONG)
+                .show()
             requireActivity().finish()
         }
 
@@ -223,14 +222,19 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     override fun startRecording() {
         isRecording = true
+
         binding.stickersLayout.children.forEach {
             it.visibility = View.GONE
         }
-
         viewModel.resetBitmapZoom(
             cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
             captureRequestBuilder!!
         )
+
+        setupMediaRecorder()
+
+        viewModel.currentCamera().createVideoCameraPreviewSession()
+
         mediaRecorder!!.start()
         Toast.makeText(requireContext(), "Start recording", Toast.LENGTH_SHORT).show()
         binding.photoButton.setBackgroundResource(R.drawable.recording)
@@ -255,14 +259,15 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
     override fun stopRecording() {
         isRecording = false
-        cameraCaptureSession!!.stopRepeating()
-        cameraCaptureSession!!.abortCaptures()
-        cameraCaptureSession!!.close()
+        try {
+            cameraCaptureSession!!.stopRepeating()
+            cameraCaptureSession!!.abortCaptures()
+            cameraCaptureSession!!.close()
+        } catch (_: Exception) {}
         mediaRecorder!!.stop()
         mediaRecorder!!.release()
-        setupMediaRecorder()
         viewModel.currentCamera().createCameraPreviewSession()
-        Toast.makeText(requireContext(), "Saved", Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), "Video saved", Toast.LENGTH_SHORT).show()
         binding.photoButton.setBackgroundResource(R.drawable.take_photo_24)
         binding.stickersLayout.children.forEach {
             it.visibility = View.VISIBLE
@@ -279,43 +284,25 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
         val contentResolver = requireContext().contentResolver
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
-            values.put(
-                MediaStore.Images.Media.RELATIVE_PATH,
-                "Pictures/" + getString(R.string.app_name)
-            )
-            values.put(MediaStore.Images.Media.IS_PENDING, true)
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            val outputStream = contentResolver.openOutputStream(uri!!)
-            if (outputStream != null) {
-                mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                outputStream.close()
-            }
-            values.put(MediaStore.Images.Media.IS_PENDING, false)
-            contentResolver.update(uri, values, null, null)
-        } else {
-            val imageFileFolder = File(
-                Environment.getExternalStorageDirectory().toString() + '/' + getString(
-                    R.string.app_name
-                )
-            )
-            if (!imageFileFolder.exists()) {
-                imageFileFolder.mkdir()
-            }
-            val imageName = "SHACAMERA_IMG_${
-                SimpleDateFormat(
-                    "yyyyMMdd_HHmmss",
-                    Locale.getDefault()
-                ).format(Date())
-            }.jpg"
-            val imageFile = File(imageFileFolder, imageName)
-            val outputStream = FileOutputStream(imageFile)
-            mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-            outputStream.close()
-            values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
-            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        val imageFileFolder = File(
+            "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/Camera"
+        )
+        if (!imageFileFolder.exists()) {
+            imageFileFolder.mkdir()
         }
+        val imageName = "SHACAMERA_IMG_${
+            SimpleDateFormat(
+                "yyyyMMdd_HHmmss",
+                Locale.getDefault()
+            ).format(Date())
+        }.jpg"
+        val imageFile = File(imageFileFolder, imageName)
+        val outputStream = FileOutputStream(imageFile)
+        mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+        outputStream.close()
+        values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
+        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+
         CoroutineScope(Dispatchers.Main + Job()).launch(Dispatchers.Main) {
             binding.flash.visibility = View.VISIBLE
             delay(100)
@@ -351,8 +338,45 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
 
         captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         captureRequestBuilder!!.addTarget(surface)
-        captureRequestBuilder!!.addTarget(mediaRecorder!!.surface)
         viewModel.setZoom(captureRequestBuilder!!)
+        cameraDevice.createCaptureSession(
+            listOf(surface),
+            object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    cameraCaptureSession = session
+                    try {
+                        session.setRepeatingRequest(
+                            captureRequestBuilder!!.build(),
+                            null,
+                            handler
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                override fun onConfigureFailed(session: CameraCaptureSession) = Unit
+            },
+            null
+        )
+    }
+
+    override fun createVideoCameraPreviewSession(cameraDevice: CameraDevice) {
+        val texture = binding.cameraTextureView.surfaceTexture
+        val surface = Surface(texture)
+
+        val isDimensionSwapped = isDimensionSwapped()
+        val size = setupPreviewSize(viewModel.currentCamera(), isDimensionSwapped)
+        texture!!.setDefaultBufferSize(size.width, size.height)
+        updateAspectRatio(
+            viewModel.screenSizeMode(),
+            size,
+            isDimensionSwapped
+        )
+
+        captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        captureRequestBuilder!!.addTarget(surface)
+        captureRequestBuilder!!.addTarget(mediaRecorder!!.surface)
         cameraDevice.createCaptureSession(
             listOf(surface, mediaRecorder!!.surface),
             object : CameraCaptureSession.StateCallback() {
@@ -436,25 +460,19 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(requireContext()) else MediaRecorder()
 
-        val videoFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-        currentFile = File.createTempFile(
-            "SHACAMERA_VIDEO_${
-                SimpleDateFormat(
-                    "yyyyMMdd_HHmmss",
-                    Locale.getDefault()
-                ).format(Date())
-            }",
-            ".mp4", videoFolder
-        )
-        if (!videoFolder!!.exists()) {
+        val videoFolder =
+            File("${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/Camera")
+        if (!videoFolder.exists()) {
             videoFolder.mkdir()
         }
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val videoName = "SHACAMERA_VIDEO_$timestamp.mp4"
 
         mediaRecorder!!.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(currentFile!!.absolutePath)
+            setOutputFile("$videoFolder/$videoName")
             setVideoFrameRate(30)
             setVideoSize(
                 1280,
@@ -472,7 +490,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             setAudioEncodingBitRate(200_000)
             setAudioSamplingRate(48_000_000)
         }
-
         mediaRecorder!!.prepare()
     }
 
@@ -506,4 +523,5 @@ interface ManageCamera {
     fun startBackgroundThread()
     fun stopBackgroundThread()
     fun createCameraPreviewSession(cameraDevice: CameraDevice)
+    fun createVideoCameraPreviewSession(cameraDevice: CameraDevice)
 }
