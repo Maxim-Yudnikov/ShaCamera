@@ -26,7 +26,7 @@ interface ManageRatio {
             simpleStorage.read(RATIO_KEY, 0)
 
         override fun currentSizeMode(): ScreenSizeMode {
-            return when (simpleStorage.read(RATIO_KEY, 2)) {
+            return when (simpleStorage.read(RATIO_KEY, 0)) {
                 0 -> ScreenSizeMode.FourToThree
                 else -> ScreenSizeMode.SixteenToNine
             }

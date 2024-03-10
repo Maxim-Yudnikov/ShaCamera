@@ -13,27 +13,27 @@ import com.maxim.shacamera.core.App
 import com.maxim.shacamera.core.sl.ProvideViewModel
 import com.maxim.shacamera.databinding.ActivityMainBinding
 
-class MainActivity : AppCompatActivity(), ProvideViewModel {
+class MainActivity : AppCompatActivity(), ProvideViewModel, CheckPermission {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var viewModel: MainViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val viewModel = viewModel(MainViewModel::class.java)
+        viewModel = viewModel(MainViewModel::class.java)
 
         viewModel.observe(this) {
             it.show(supportFragmentManager, R.id.container)
         }
 
-        viewModel.init(savedInstanceState == null)
+        if (checkPermissions())
+            viewModel.init(savedInstanceState == null)
     }
 
-    override fun onResume() {
-        super.onResume()
-
+    override fun checkPermissions(): Boolean {
         val permissionList = mutableListOf<String>()
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.CAMERA)
@@ -58,7 +58,9 @@ class MainActivity : AppCompatActivity(), ProvideViewModel {
             requestPermissions(
                 permissionList.toTypedArray(), 1
             )
+            return false
         }
+        return true
     }
 
     override fun onRequestPermissionsResult(
@@ -71,9 +73,10 @@ class MainActivity : AppCompatActivity(), ProvideViewModel {
         if (requestCode == 1) {
             grantResults.forEach {
                 if (it != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "Please gives permissions", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Please grant all permissions", Toast.LENGTH_LONG).show()
                     finish()
                 }
+                viewModel.init(true)
             }
         }
     }
@@ -81,4 +84,8 @@ class MainActivity : AppCompatActivity(), ProvideViewModel {
     override fun <T : ViewModel> viewModel(clasz: Class<T>): T {
         return (application as App).viewModel(clasz)
     }
+}
+
+interface CheckPermission {
+    fun checkPermissions(): Boolean
 }

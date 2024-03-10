@@ -43,6 +43,7 @@ import com.maxim.shacamera.R
 import com.maxim.shacamera.camera.data.ScreenSizeMode
 import com.maxim.shacamera.core.presentation.BaseFragment
 import com.maxim.shacamera.databinding.FragmentCameraBinding
+import com.maxim.shacamera.main.CheckPermission
 import com.maxim.shacamera.stickers.data.ShowSticker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -187,6 +188,11 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 
     override fun onResume() {
+        if (!(requireActivity() as CheckPermission).checkPermissions()) {
+            Toast.makeText(requireContext(), "Please grant all permissions", Toast.LENGTH_LONG).show()
+            requireActivity().finish()
+        }
+
         super.onResume()
         viewModel.onResume()
 
