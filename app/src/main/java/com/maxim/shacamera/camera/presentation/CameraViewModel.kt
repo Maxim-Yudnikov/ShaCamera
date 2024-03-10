@@ -133,7 +133,6 @@ class CameraViewModel(
         manageCamera?.openCamera(myCameras[currentCameraIndex])
     }
 
-    //todo
     override fun showSticker(drawableId: Int) {
         (manageCamera as ShowSticker).showSticker(drawableId)
     }

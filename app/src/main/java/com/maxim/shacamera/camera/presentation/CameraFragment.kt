@@ -109,7 +109,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture) = false
     }
 
-    //todo
     @SuppressLint("ClickableViewAccessibility")
     private val zoomListener = View.OnTouchListener { _, event ->
         if (!viewModel.currentCamera().isOpen())
