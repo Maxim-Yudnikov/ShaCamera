@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -186,9 +187,12 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         super.onResume()
         viewModel.onResume()
 
-        if (!binding.textureView.isAvailable)
+        if (!binding.textureView.isAvailable) {
+            Log.d("MyLog", "onResume1")
             binding.textureView.surfaceTextureListener = textureListener
+        }
         else {
+            Log.d("MyLog", "onResume2")
             viewModel.openCamera()
         }
     }
@@ -336,8 +340,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         val displaySize = Point()
         ContextCompat.getDisplayOrDefault(requireActivity()).getRealSize(displaySize)
 
-        Log.d("MyLog", "root w: ${binding.textureView.width}, h: ${binding.textureView.height}")
-
         return if (isDimensionSwapped)
             camera.getOptimalPreviewSize(
                 binding.textureView.height,
@@ -437,7 +439,7 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
     }
 }
 
-interface ManageCamera {
+interface ManageCamera: Serializable {
     fun openCamera(camera: CameraService)
     fun makePhoto()
     fun startBackgroundThread()

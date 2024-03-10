@@ -53,10 +53,12 @@ interface CameraService {
 
         @SuppressLint("MissingPermission")
         override fun openCamera(handler: Handler) {
+            Log.d("MyLog", "openCamera")
             cameraManager.openCamera(cameraId, cameraCallback, handler)
         }
 
         override fun closeCamera() {
+            Log.d("MyLog", "closeCamera")
             cameraDevice?.let {
                 it.close()
                 cameraDevice = null
@@ -88,7 +90,6 @@ interface CameraService {
                 }
             }
 
-            Log.d("MyLog", "ratio: $aspectRatio, big: ${bigEnough.toList()}, notBig: ${notBigEnough.toList()}")
             val size = if (dlssIsOn) when {
                 notBigEnough.size > 0 -> Collections.min(notBigEnough, ComparableByArea())
                 bigEnough.size > 0 -> Collections.min(bigEnough, ComparableByArea())
@@ -98,7 +99,6 @@ interface CameraService {
                 notBigEnough.size > 0 -> Collections.max(notBigEnough, ComparableByArea())
                 else -> choices[0]
             }
-            Log.d("MyLog", "size: $size")
             return size
         }
 

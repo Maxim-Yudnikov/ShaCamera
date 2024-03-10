@@ -37,8 +37,8 @@ class CameraViewModel(
             manageFilters.setCallback(this)
             stickersSharedCommunication.setCallback(this)
             communication.update(CameraState.Base(1f))
-            this.manageCamera = manageCamera
         }
+        this.manageCamera = manageCamera
     }
 
     fun screenSizeMode() = manageRatio.currentSizeMode()
