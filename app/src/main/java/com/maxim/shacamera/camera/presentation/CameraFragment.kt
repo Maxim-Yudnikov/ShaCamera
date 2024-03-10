@@ -107,7 +107,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             cameraManager!!.getCameraCharacteristics(viewModel.currentCameraId()),
             event!!,
             listOf(binding.textureView.width, binding.textureView.height).min(),
-            binding.zoomValueTextView,
             captureRequestBuilder!!,
             cameraCaptureSession!!,
             handler!!
@@ -173,6 +172,10 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         }
 
         binding.imageView.setOnTouchListener(zoomListener)
+
+        viewModel.observe(this) {
+            it.show(binding.zoomValueTextView)
+        }
 
         viewModel.init(savedInstanceState == null, this)
 

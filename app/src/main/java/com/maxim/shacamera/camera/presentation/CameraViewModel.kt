@@ -5,9 +5,11 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CaptureRequest
 import android.os.Handler
 import android.view.MotionEvent
-import android.widget.TextView
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import com.maxim.shacamera.camera.data.CameraRepository
+import com.maxim.shacamera.core.presentation.Communication
 import com.maxim.shacamera.core.presentation.Navigation
 import com.maxim.shacamera.core.presentation.Reload
 import com.maxim.shacamera.settings.data.ManageFilters
@@ -18,12 +20,13 @@ import com.maxim.shacamera.stickers.data.StickersSharedCommunication
 import com.maxim.shacamera.stickers.presentation.StickersScreen
 
 class CameraViewModel(
+    private val communication: CameraCommunication,
     private val repository: CameraRepository,
     private val manageRatio: ManageRatio,
     private val manageFilters: ManageFilters,
     private val stickersSharedCommunication: StickersSharedCommunication.Read,
     private val navigation: Navigation.Update
-) : ViewModel(), Reload, ShowSticker {
+) : ViewModel(), Reload, ShowSticker, Communication.Observe<CameraState> {
     private var manageCamera: ManageCamera? = null
     private val myCameras = mutableListOf<CameraService>()
     private var currentCameraIndex = 0
@@ -33,6 +36,7 @@ class CameraViewModel(
             manageRatio.setCallback(this)
             manageFilters.setCallback(this)
             stickersSharedCommunication.setCallback(this)
+            communication.update(CameraState.Base(1f))
             this.manageCamera = manageCamera
         }
     }
@@ -62,30 +66,29 @@ class CameraViewModel(
 
     fun bitmapZoom() = repository.bitmapZoom()
 
-    fun setZoom(
-        captureRequestBuilder: CaptureRequest.Builder,
-    ) {
-        repository.setZoom(captureRequestBuilder)
+    fun setZoom(captureRequestBuilder: CaptureRequest.Builder, ) {
+        val zoom = repository.setZoom(captureRequestBuilder)
+        communication.update(CameraState.Base(zoom))
     }
 
     fun handleZoom(
         cameraCharacteristics: CameraCharacteristics,
         event: MotionEvent,
         screenMinSize: Int,
-        zoomValueTextView: TextView,
         captureRequestBuilder: CaptureRequest.Builder,
         cameraCaptureSession: CameraCaptureSession,
         handler: Handler
     ): Boolean {
-        return repository.handleZoom(
+        val value = repository.handleZoom(
             cameraCharacteristics,
             event,
             screenMinSize,
-            zoomValueTextView,
             captureRequestBuilder,
             cameraCaptureSession,
             handler
         )
+        communication.update(CameraState.Base(value.first))
+        return value.second
     }
 
     fun changeCamera() {
@@ -121,5 +124,9 @@ class CameraViewModel(
     //todo
     override fun showSticker(drawableId: Int) {
         (manageCamera as ShowSticker).showSticker(drawableId)
+    }
+
+    override fun observe(owner: LifecycleOwner, observer: Observer<CameraState>) {
+        communication.observe(owner, observer)
     }
 }

@@ -7,7 +7,6 @@ import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureRequest.Builder
 import android.os.Handler
 import android.view.MotionEvent
-import android.widget.TextView
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -17,21 +16,17 @@ interface CameraRepository {
         cameraCharacteristics: CameraCharacteristics,
         event: MotionEvent,
         screenMinSize: Int,
-        zoomValueTextView: TextView,
         captureRequestBuilder: Builder,
         cameraCaptureSession: CameraCaptureSession,
         handler: Handler
-    ): Boolean
+    ): Pair<Float, Boolean>
 
     fun bitmapZoom(): Float
-    fun setZoom(
-        captureRequestBuilder: Builder,
-    )
+    fun setZoom(captureRequestBuilder: Builder): Float
 
     class Base : CameraRepository {
         private var fingerSpacing = 0f
         private var zoomLevel = 1f
-        private var maxZoomLevel = 25
         private var zoom: Rect? = null
         private var bitmapZoom = 1f
 
@@ -39,14 +34,16 @@ interface CameraRepository {
             cameraCharacteristics: CameraCharacteristics,
             event: MotionEvent,
             screenMinSize: Int,
-            zoomValueTextView: TextView,
             captureRequestBuilder: Builder,
             cameraCaptureSession: CameraCaptureSession,
             handler: Handler
-        ): Boolean {
+        ): Pair<Float, Boolean> {
             val rect =
                 cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
-                    ?: return false
+                    ?: return Pair(zoomLevel * bitmapZoom, false)
+            val maxZoomLevel =
+                cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)
+                    ?: return Pair(zoomLevel * bitmapZoom, false)
 
             if (event.pointerCount == 2) {
                 val currentFingerSpacing = getFingerSpacing(event)
@@ -82,28 +79,23 @@ interface CameraRepository {
                         rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2
                     )
                     captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom)
-                    val zoomValueText =
-                        if (bitmapZoom == 1f) "${(zoomLevel * 10).roundToInt() / 10f}x" else
-                            "${(zoomLevel * bitmapZoom).roundToInt()}x ($maxZoomLevel*${(bitmapZoom * 10).roundToInt() / 10f})"
-                    zoomValueTextView.text = zoomValueText
                 }
                 fingerSpacing = currentFingerSpacing
             } else {
-                return true
+                return Pair(zoomLevel * bitmapZoom, true)
             }
             cameraCaptureSession.setRepeatingRequest(
                 captureRequestBuilder.build(),
                 null,
                 handler
             )
-            return true
+            return Pair(zoomLevel * bitmapZoom, true)
         }
 
         override fun bitmapZoom() = bitmapZoom
-        override fun setZoom(
-            captureRequestBuilder: Builder,
-        ) {
+        override fun setZoom(captureRequestBuilder: Builder): Float {
             captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom)
+            return zoomLevel * bitmapZoom
         }
 
         private fun getFingerSpacing(event: MotionEvent): Float {

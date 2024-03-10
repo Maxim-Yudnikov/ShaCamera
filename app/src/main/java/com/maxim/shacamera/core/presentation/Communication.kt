@@ -17,7 +17,7 @@ interface Communication {
 
     abstract class Abstract<T>(protected val liveData: MutableLiveData<T>): Mutable<T> {
         override fun update(value: T) {
-            liveData.value = value
+            liveData.postValue(value)
         }
 
         override fun observe(owner: LifecycleOwner, observer: Observer<T>) {
