@@ -280,7 +280,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
         }
-        val contentResolver = requireContext().contentResolver
 
         val imageFileFolder = File(
             "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/Camera"
@@ -299,7 +298,6 @@ class CameraFragment : BaseFragment<FragmentCameraBinding, CameraViewModel>(), M
         mainBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
         outputStream.close()
         values.put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
-        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
 
         CoroutineScope(Dispatchers.Main + Job()).launch(Dispatchers.Main) {
             binding.flash.visibility = View.VISIBLE

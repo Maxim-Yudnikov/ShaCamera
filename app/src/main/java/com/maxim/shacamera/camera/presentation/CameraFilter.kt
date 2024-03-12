@@ -3,6 +3,7 @@ package com.maxim.shacamera.camera.presentation
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.Size
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -31,9 +32,11 @@ interface CameraFilter {
         }
 
         override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
+            val screen = context.resources.displayMetrics
+            val width = 180 * (screen.widthPixels / 1080f)
             val sizes = Size(
-                (180 / bitmapZoom).toInt(),
-                (78 / bitmapZoom).toInt()
+                (width / bitmapZoom).toInt(),
+                (width / 2.3f / bitmapZoom).toInt()
             )
             val filterBitmap =
                 ContextCompat.getDrawable(context, R.drawable.rtx_on)!!
@@ -43,20 +46,29 @@ interface CameraFilter {
                     )
             Canvas(bitmap).drawBitmap(
                 filterBitmap,
-                bitmap.width / 10f * 6,
-                bitmap.height / 10f * 8,
+                null,
+                Rect(
+                    (bitmap.width * 0.6f).toInt(),
+                    (bitmap.height * 0.8f).toInt(),
+                    screen.widthPixels,
+                    (bitmap.height * 0.95f).toInt()
+                ),
                 null
             )
         }
     }
 
+    //bitmap.width / 10f * 6,
+    //bitmap.height / 10f * 8,
+
     data class Dlss(private val isWeak: Boolean) : CameraFilter {
         override fun showFilter(bitmap: Bitmap) = Unit
 
         override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
+            val screen = context.resources.displayMetrics
             val sizes = Size(
-                (420 / bitmapZoom).toInt(),
-                (40 / bitmapZoom).toInt()
+                (screen.widthPixels / bitmapZoom).toInt(),
+                (screen.widthPixels / 9f / bitmapZoom).toInt()
             )
             val filterBitmap =
                 ContextCompat.getDrawable(context, R.drawable.dlss_on)!!
@@ -64,8 +76,12 @@ interface CameraFilter {
                         if (sizes.width > 1) sizes.width else 1,
                         if (sizes.height > 1) sizes.height else 1
                     )
-            Canvas(bitmap).drawBitmap(filterBitmap, 0f, 0f, null)
-
+            Canvas(bitmap).drawBitmap(
+                filterBitmap,
+                Rect(0, 0, screen.widthPixels, screen.heightPixels),
+                Rect(0, 0, screen.widthPixels, screen.heightPixels),
+                null
+            )
         }
     }
 
@@ -81,9 +97,11 @@ interface CameraFilter {
         }
 
         override fun showImage(bitmap: Bitmap, context: Context, bitmapZoom: Float) {
+            val screen = context.resources.displayMetrics
+            val width = 180 * (screen.widthPixels / 1080f)
             val sizes = Size(
-                (180 / bitmapZoom).toInt(),
-                (78 / bitmapZoom).toInt()
+                (width / bitmapZoom).toInt(),
+                (width / 2.3f / bitmapZoom).toInt()
             )
             val filterBitmap =
                 ContextCompat.getDrawable(context, R.drawable.fsr_on)!!
@@ -93,10 +111,22 @@ interface CameraFilter {
                     )
             Canvas(bitmap).drawBitmap(
                 filterBitmap,
-                0f,
-                bitmap.height / 10f * 8,
+                null,
+                Rect(
+                    0,
+                    (bitmap.height * 0.8f).toInt(),
+                    (bitmap.width * 0.4f).toInt(),
+                    (bitmap.height * 0.95f).toInt()
+                ),
                 null
             )
         }
     }
+
+    //Rect(
+    //                    (bitmap.width * 0.6f).toInt(),
+    //                    (bitmap.height * 0.8f).toInt(),
+    //                    screen.widthPixels,
+    //                    (bitmap.height * 0.95f).toInt()
+    //                ),
 }
